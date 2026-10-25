@@ -1,0 +1,177 @@
+{
+  "schema_version": "1.0",
+  "stage": "test_case_design",
+  "source_references": [
+    {"source_type":"user_story","source_id":"user_story","locator":"characters 0-16000"},
+    {"source_type":"attachment","source_id":"c2d1eadb-60f9-4b3e-a07e-956604ee291e","locator":"sign-in-wireframe.png"},
+    {"source_type":"knowledge","source_id":"4d3e7857-9fa5-49cc-a86a-33bcf67fabee","locator":"v1, chunk 0"}
+  ],
+  "assumptions": [
+    "These are proposed, not executed, tests. No implementation, pytest outcome, deployed environment or real notification delivery is evidenced.",
+    "Only the sign-in card is image-observed. Treat name@example.com and ******** as presentation examples, not proven prefilled credentials; recovery views, navigation and synthetic sign-in are proposed.",
+    "The approved design selects an injected aware UTC clock, locked process-local store, private link outbox separate from the owner-notification sink, normalized-key private accounting, and a rolling 3600-second window; these are not prescribed by the wireframe or the recovery standard.",
+    "Choose distinct P_old, P_new1, P_new2 and P_new3 that meet the implementation's documented minimal password rule; choose P_invalid that it rejects. Do not assume a password-complexity threshold.",
+    "Use independent fresh stores and clients for comparisons unless a case explicitly calls for continued state; the private outbox is a test-only inspection surface, not external delivery.",
+    "A review of a bounded tree/diff and available execution records cannot prove no deployment outside those records. Unavailable runtime, tests or records are validation problems, not passes.",
+    "Approved REQ and TASK identifiers come from prior stages, whose authorized reads supplied no citable stage_output locator; none is invented."
+  ],
+  "open_questions": [
+    {"question":"What exact minimal password-validation rule will the implementation document?","blocking":false,"context":"Select valid and invalid test data only after the rule is documented; empty input is invalid for the proposed reset form."},
+    {"question":"What wording and precise focus/error treatment should the proposed recovery views use?","blocking":false,"context":"Only the sign-in image is observed; tests assert account-neutral, accessible outcomes rather than unsupported copy or pixels."},
+    {"question":"Will issued links be inspectable only in tests or through a local-only demonstrator affordance?","blocking":false,"context":"The approved design uses a private owner-directed outbox, never public confirmation or external mail."},
+    {"question":"Is the design-selected rolling 3600-second window and private nonexistent-key accounting acceptable?","blocking":false,"context":"The standard specifies five per account per hour and identical public existing/nonexistent responses, not the internal algorithm."},
+    {"question":"What additional sign-in policy or responsive fidelity, if any, is required?","blocking":false,"context":"Synthetic sign-in and a guarded page are proposed solely to observe session revocation; the image establishes neither behavior nor dimensions."}
+  ],
+  "test_cases": [
+    {
+      "id":"TC-001","title":"Observed sign-in card and examples","requirement_ids":["REQ-001"],"task_ids":["TASK-001","TASK-002","TASK-010"],
+      "steps":["Preconditions/data: fresh unauthenticated client; no entered credentials. GET the proposed / sign-in page.","Inspect the visible card, rendered HTML, label/input associations, field types, displayed examples and initial input values."],
+      "expected_results":["One centered outlined sign-in card on a white page has a bold Sign in heading, programmatically labeled Email address and Password fields, a visible name@example.com example and a masked ******** example.","Examples are presentation hints, not populated credentials: initial inputs are empty and no plaintext password example is exposed. No exact dimensions or sign-in behavior are inferred."],
+      "source_references":[{"source_type":"user_story","source_id":"user_story","locator":"characters 0-16000"},{"source_type":"attachment","source_id":"c2d1eadb-60f9-4b3e-a07e-956604ee291e","locator":"sign-in-wireframe.png"}]
+    },
+    {
+      "id":"TC-002","title":"Observed sign-in control order","requirement_ids":["REQ-001"],"task_ids":["TASK-002","TASK-010"],
+      "steps":["Preconditions/data: fresh unauthenticated client; GET the proposed / page.","Inspect visual and DOM order of Password, recovery link, submit button and administrator sentence; check their relative visual treatment without pixel measurements."],
+      "expected_results":["A blue underlined Forgot password? link follows Password; a dark full-width Sign in button follows the link; gray No account? Contact your administrator. appears beneath the button.","Wording and order match the image; button presence does not establish an authentication policy."],
+      "source_references":[{"source_type":"user_story","source_id":"user_story","locator":"characters 0-16000"},{"source_type":"attachment","source_id":"c2d1eadb-60f9-4b3e-a07e-956604ee291e","locator":"sign-in-wireframe.png"}]
+    },
+    {
+      "id":"TC-003","title":"Start reset request from recovery link","requirement_ids":["REQ-002"],"task_ids":["TASK-002","TASK-004","TASK-010"],
+      "steps":["Preconditions/data: fresh unsigned-in client on the sign-in page; focus its Forgot password? link with Tab.","Activate the link with Enter and inspect the proposed /forgot-password destination, address field, submit action and focus order."],
+      "expected_results":["The link opens a server-rendered reset-request form with a programmatically labeled editable address field and operable submit control rather than a dead end.","Focus order reaches the address and submit controls. Only the originating link is image-observed; its destination is proposed."],
+      "source_references":[{"source_type":"user_story","source_id":"user_story","locator":"characters 0-16000"},{"source_type":"attachment","source_id":"c2d1eadb-60f9-4b3e-a07e-956604ee291e","locator":"sign-in-wireframe.png"},{"source_type":"knowledge","source_id":"4d3e7857-9fa5-49cc-a86a-33bcf67fabee","locator":"v1, chunk 0"}]
+    },
+    {
+      "id":"TC-004","title":"Existing and nonexistent request response parity","requirement_ids":["REQ-003"],"task_ids":["TASK-004","TASK-005","TASK-010"],
+      "steps":["Preconditions/data: separate matched fresh stores and clients at fixed UTC t0 = 2026-01-01T12:00:00Z, with zero request history; synthetic A owner@example.test and absent N absent@example.test. Match headers, valid per-client CSRF and pre-POST cookie state; use syntactically valid differently normalized addresses.","Submit A and N independently at the same fixed time. Record public status, Location, response body, account-dependent headers/cookies, and followed redirect destination; repeat with execution order and client assignment swapped on new matched fixtures.","Inspect each private outbox separately from public responses."],
+      "expected_results":["For every matched pair, public status, Location, destination status/body and account-dependent headers/cookies are identical; no address or bearer token is echoed. Compare equivalent CSRF cookie attributes rather than unrelated random bytes.","Only A obtains a private owner-directed link. Clock advancement, previous cookie state, throttling history and run order cannot explain any public difference."],
+      "source_references":[{"source_type":"knowledge","source_id":"4d3e7857-9fa5-49cc-a86a-33bcf67fabee","locator":"v1, chunk 0"}]
+    },
+    {
+      "id":"TC-005","title":"Suppress the sixth request within an hour","requirement_ids":["REQ-004"],"task_ids":["TASK-005","TASK-010"],
+      "steps":["Preconditions/data: fresh synthetic A owner@example.test, empty private outbox/counter, injected aware UTC t0 = 2026-01-01T12:00:00Z and a CSRF-valid client.","Submit five eligible requests for A's normalized key at t0, refreshing CSRF if required; record public responses and private link count.","At t0 + 3599 seconds submit a sixth and inspect outbox, honored-issuance count and public response."],
+      "expected_results":["The first five requests produce five distinct private A links; the sixth adds no link and is not honored.","The sixth has the same neutral valid-request public status, redirect, destination and account-dependent headers/cookies as the first five; throttle state is not exposed."],
+      "source_references":[{"source_type":"knowledge","source_id":"4d3e7857-9fa5-49cc-a86a-33bcf67fabee","locator":"v1, chunk 0"}]
+    },
+    {
+      "id":"TC-006","title":"First, fifth and rolling-hour boundary requests","requirement_ids":["REQ-004"],"task_ids":["TASK-005","TASK-010"],
+      "steps":["Preconditions/data: fresh A store, empty history, injected UTC t0 = 2026-01-01T12:00:00Z, valid CSRF per request. Submit one A request and four more at t0.","Inspect private outbox after first and fifth; attempt sixth at t0 + 3599 seconds and another exactly t0 + 3600 seconds.","Compare public responses for first, fifth, suppressed sixth and boundary request."],
+      "expected_results":["One then five distinct private links exist after first and fifth; the sixth adds none. At the proposed rolling boundary, timestamps <= t - 3600 seconds age out and the next eligible request adds a link.","All syntactically valid public responses remain the same neutral response. Exact oldest-timestamp arithmetic is a design choice, not a standard-mandated window algorithm."],
+      "source_references":[{"source_type":"knowledge","source_id":"4d3e7857-9fa5-49cc-a86a-33bcf67fabee","locator":"v1, chunk 0"}]
+    },
+    {
+      "id":"TC-007","title":"Valid link changes only owner password","requirement_ids":["REQ-005"],"task_ids":["TASK-005","TASK-006","TASK-007","TASK-011"],
+      "steps":["Preconditions/data: fresh synthetic A owner@example.test and B peer@example.test with separate P_old fixture hashes at UTC t0; privately issue an unused A link. Select distinct P_new1 satisfying the documented minimal password rule.","Before t0 + 30 minutes, GET the private link using a new client, obtain valid form CSRF and POST P_new1.","Inspect A/B hashes and attempt synthetic sign-in for A with P_old and P_new1 and B with its original credential."],
+      "expected_results":["Success is reported only after commit: A's hash changes, A's old credential fails and P_new1 succeeds in the proposed demonstration.","B's hash and credential remain unchanged. Private link inspection and synthetic sign-in do not imply external delivery or a production authentication policy."],
+      "source_references":[{"source_type":"user_story","source_id":"user_story","locator":"characters 0-16000"},{"source_type":"knowledge","source_id":"4d3e7857-9fa5-49cc-a86a-33bcf67fabee","locator":"v1, chunk 0"}]
+    },
+    {
+      "id":"TC-008","title":"Consumed link cannot change password again","requirement_ids":["REQ-006"],"task_ids":["TASK-006","TASK-007","TASK-011"],
+      "steps":["Preconditions/data: fresh A link at t0, clock before expiry; choose distinct documented-valid P_new1 and P_new2, valid CSRF and empty owner-notice sink.","Redeem the link with P_new1, recording hash, session version and notice count; GET and CSRF-valid POST the same link again with P_new2.","Inspect non-success view, hash, version, notices and the effective credential."],
+      "expected_results":["Second GET offers no usable password form but a new-request path; second POST cannot report success.","Replay does not change hash or session version and adds no notice; P_new1 remains effective. Concurrent replay is separately checked in TC-022."],
+      "source_references":[{"source_type":"knowledge","source_id":"4d3e7857-9fa5-49cc-a86a-33bcf67fabee","locator":"v1, chunk 0"}]
+    },
+    {
+      "id":"TC-009","title":"Link valid at last instant before expiry","requirement_ids":["REQ-007"],"task_ids":["TASK-006","TASK-007","TASK-011"],
+      "steps":["Preconditions/data: isolated unused A link issued at aware UTC t0 = 2026-01-01T12:00:00Z, documented-valid P_new1 and valid form CSRF obtained before expiry.","At t0 + 30 minutes - 1 microsecond POST P_new1 and inspect result, A hash and proposed synthetic old/new sign-in behavior."],
+      "expected_results":["The proposed strict now < issue + 30 minutes check accepts the unused link; exactly one password change commits.","A changed hash and old-password rejection/new-password acceptance corroborate the success; success text alone is insufficient."],
+      "source_references":[{"source_type":"knowledge","source_id":"4d3e7857-9fa5-49cc-a86a-33bcf67fabee","locator":"v1, chunk 0"}]
+    },
+    {
+      "id":"TC-010","title":"Exact expiry and valid GET followed by expired POST","requirement_ids":["REQ-007"],"task_ids":["TASK-006","TASK-007","TASK-011"],
+      "steps":["Preconditions/data: three separate fresh unused A links issued at UTC t0, documented-valid P_new1, valid per-client CSRF; snapshot hash, token state, session version and notices.","In store 1 GET and POST at t0 + 30 minutes; in store 2 POST at t0 + 30 minutes + 1 microsecond; in store 3 GET the valid form at t0 + 29 minutes and POST with its CSRF at exactly t0 + 30 minutes.","Inspect each response and private state."],
+      "expected_results":["No case commits a password change, successfully consumes the token, bumps the session version, records a notice or claims success.","Expiry-time GET offers a recoverable new-request path; a prior valid GET does not authorize an expired POST, which rechecks time at commit."],
+      "source_references":[{"source_type":"knowledge","source_id":"4d3e7857-9fa5-49cc-a86a-33bcf67fabee","locator":"v1, chunk 0"}]
+    },
+    {
+      "id":"TC-011","title":"Revoke all owner sessions but not another account","requirement_ids":["REQ-008"],"task_ids":["TASK-003","TASK-008","TASK-011"],
+      "steps":["Preconditions/data: via proposed synthetic sign-in, independently authenticate A on clients A1 and A2 and B on B1; confirm initial guarded access, save A1's signed cookie and snapshot versions.","Using a separate client, issue and successfully redeem A's unused link before expiry with valid CSRF and documented-valid P_new1.","Request the guarded page with A1, A2, B1 and a fresh jar containing A1's stale cookie; separately inspect A's version and check failed, expired and replayed resets against an otherwise valid A session."],
+      "expected_results":["A's version increments once and both previous A clients plus the copied signed cookie are unauthenticated on their next guarded request; B1 stays authorized and B's version is unchanged.","Failed, expired or replayed resets do not revoke a valid A session; a valid cookie signature does not bypass the account-version guard."],
+      "source_references":[{"source_type":"knowledge","source_id":"4d3e7857-9fa5-49cc-a86a-33bcf67fabee","locator":"v1, chunk 0"}]
+    },
+    {
+      "id":"TC-012","title":"Exactly one owner notice for a successful reset","requirement_ids":["REQ-009"],"task_ids":["TASK-007","TASK-009","TASK-011"],
+      "steps":["Preconditions/data: fresh A/B fixtures and empty distinct in-memory owner-notification sink; obtain one unused A link from the private outbox, valid form CSRF and documented-valid P_new1.","Reset A before expiry; inspect committed hash and process-local notice sink independently of the public response."],
+      "expected_results":["Exactly one owner-addressed A notice corresponds to the committed A reset; none is for B and there are no extra entries.","Public success follows commit. A local sink entry is not real, durable or externally delivered notification."],
+      "source_references":[{"source_type":"user_story","source_id":"user_story","locator":"characters 0-16000"},{"source_type":"knowledge","source_id":"4d3e7857-9fa5-49cc-a86a-33bcf67fabee","locator":"v1, chunk 0"}]
+    },
+    {
+      "id":"TC-013","title":"One separate notice for each of two successes","requirement_ids":["REQ-009"],"task_ids":["TASK-009","TASK-011"],
+      "steps":["Preconditions/data: fresh A and empty sink; choose distinct documented-valid P_new1 and P_new2, separate valid CSRF and clock before expiry of each link.","Issue A link L1 and reset with P_new1; issue fresh L2 after success and reset with P_new2; inspect the sink after each commit.","Replay consumed L1 and inspect sink again."],
+      "expected_results":["After first success there is one A-owner record; after second there are two distinct records for the two committed resets.","Replaying L1 produces no third notice or success. Only the local sink, not external delivery, is verified."],
+      "source_references":[{"source_type":"user_story","source_id":"user_story","locator":"characters 0-16000"},{"source_type":"knowledge","source_id":"4d3e7857-9fa5-49cc-a86a-33bcf67fabee","locator":"v1, chunk 0"}]
+    },
+    {
+      "id":"TC-014","title":"Python 3.12 Flask server-rendered pages","requirement_ids":["REQ-010"],"task_ids":["TASK-001","TASK-002","TASK-004","TASK-006"],
+      "steps":["Preconditions/data: once implementation artifacts exist, inspect runtime/dependency metadata and proposed Flask app factory/Jinja templates; prepare local Python 3.12 without deploying.","Under Python 3.12 use a Flask test client to request sign-in, reset-request and usable/unusable proposed link pages; inspect content types, response HTML and template-rendering path."],
+      "expected_results":["Runtime metadata targets Python 3.12, Flask is the framework and requested user-facing pages return server-rendered HTML containing the relevant forms/states, not client-only rendering.","Unavailable Python 3.12 or missing artifacts is a validation problem, not a pass or a reason to deploy."],
+      "source_references":[{"source_type":"user_story","source_id":"user_story","locator":"characters 0-16000"}]
+    },
+    {
+      "id":"TC-015","title":"Synthetic accounts and process-local notification sink","requirement_ids":["REQ-011"],"task_ids":["TASK-001","TASK-003","TASK-005","TASK-009"],
+      "steps":["Preconditions/data: inspect fixture sources and integrations; create two independent proposed app instances with synthetic A/B fixtures and empty private outboxes and distinct notice sinks at fixed UTC t0.","In instance 1 privately issue and redeem an A link; compare both instances' accounts, counters, token records, outboxes, versions and sinks.","Inspect integrations for real identity lookup, external notification service or persistent account/notification backend."],
+      "expected_results":["Only synthetic fixtures are used; the owner notice exists in instance 1's separate in-memory sink, not instance 2's. Links, counters, token, version and password mutations do not cross instances.","No external notification service is invoked; a private test link outbox is distinct from the notice sink and proves neither durability nor delivery."],
+      "source_references":[{"source_type":"user_story","source_id":"user_story","locator":"characters 0-16000"}]
+    },
+    {
+      "id":"TC-016","title":"Collect and run automated pytest coverage","requirement_ids":["REQ-012"],"task_ids":["TASK-010","TASK-011"],
+      "steps":["Preconditions/data: only after implementation and tests exist, under Python 3.12 collect pytest cases, inspect assertions and map each required behavior to test names.","Run pytest locally; record command, environment, collection and actual pass/fail/skip/blocked outcome for each targeted behavior group."],
+      "expected_results":["Automated assertions cover sign-in presentation, reset entry, existing/nonexistent and throttled parity, first/fifth/sixth/hour boundary, successful reset, single-use/replay, just-before and exact 30-minute expiry, all-session sign-out and an owner notice after each success.","Collection alone is not a pass; missing, skipped or failing assertions remain reported gaps. This proposed case does not assert pytest has run or passed."],
+      "source_references":[{"source_type":"user_story","source_id":"user_story","locator":"characters 0-16000"},{"source_type":"knowledge","source_id":"4d3e7857-9fa5-49cc-a86a-33bcf67fabee","locator":"v1, chunk 0"}]
+    },
+    {
+      "id":"TC-017","title":"Document synthetic prototype production limitations","requirement_ids":["REQ-013"],"task_ids":["TASK-012"],
+      "steps":["Preconditions/data: once project documentation exists, inspect README, local run/test instructions and all production-readiness claims.","Check for synthetic-only identities, volatile process-local accounts/counters/tokens/session versions/link outbox/notice sink, restart/multi-worker divergence, lack of real delivery and incomplete production security."],
+      "expected_results":["Documentation explicitly identifies synthetic and in-memory limitations, gives local/test instructions, and does not claim production readiness or durable/external delivery.","Absent documentation or an unqualified production-ready claim fails this future review; the checklist is not a production security certification."],
+      "source_references":[{"source_type":"user_story","source_id":"user_story","locator":"characters 0-16000"}]
+    },
+    {
+      "id":"TC-018","title":"Bounded no-deployment review","requirement_ids":["REQ-014"],"task_ids":["TASK-012"],
+      "steps":["Preconditions/data: obtain final bounded project tree/diff and available execution/delivery records; do not deploy, trigger workflows or contact a hosted environment.","Inspect added workflows, deployment scripts/configuration, hosted endpoints and deploy commands; distinguish local Flask execution or pytest from deployment. Record reviewed paths/records and inaccessible environments."],
+      "expected_results":["No deployment workflow or performed deployment is found within the inspected deliverables and available records; flag any deployment-related addition.","Inspection cannot prove absence of deployments outside those records; missing external evidence is a stated limit, never a global non-deployment claim."],
+      "source_references":[{"source_type":"user_story","source_id":"user_story","locator":"characters 0-16000"}]
+    },
+    {
+      "id":"TC-019","title":"Parity under limit and throttling with normalized keys","requirement_ids":["REQ-003","REQ-004"],"task_ids":["TASK-004","TASK-005","TASK-010"],
+      "steps":["Preconditions/data: for each comparison use separate matched stores and independent clients with equivalent valid CSRF/headers/cookie state; fix UTC t0 and seed normalized existing A owner@example.test and absent N absent@example.test keys with equal private counts of zero, four or five at t0. Use mixed-case/whitespace variants normalized to baseline keys.","At counts zero and four submit one valid request per key at t0; at five submit one per key at t0 + 3599 seconds. Follow redirects; repeat each pair with order and client assignment swapped on fresh matched stores.","Compare public status, Location, confirmation body and account-dependent headers/cookies; inspect private counts/outboxes separately."],
+      "expected_results":["For every matched A/N pair, account-dependent public surfaces are indistinguishable below and at the ceiling; they disclose neither account existence nor issuance. CSRF randomness, wall time and run order cannot explain differences.","Eligible A alone gets a private link; N never does; neither suppressed key gets a link. Proposed private normalized-key accounting cannot be bypassed by case/whitespace variants."],
+      "source_references":[{"source_type":"knowledge","source_id":"4d3e7857-9fa5-49cc-a86a-33bcf67fabee","locator":"v1, chunk 0"}]
+    },
+    {
+      "id":"TC-020","title":"Invalid address, password and CSRF rejection","requirement_ids":["REQ-002","REQ-003","REQ-005"],"task_ids":["TASK-002","TASK-004","TASK-007","TASK-010","TASK-011"],
+      "steps":["Preconditions/data: fresh matched A/N stores and CSRF-capable clients; snapshot counters, outbox, A hash, token state, version and notice sink. Choose empty/malformed address, empty password and P_invalid rejected by the eventual documented rule.","Submit empty/malformed address for A/N-equivalent paths, comparing feedback within each input class; submit an otherwise valid request with missing or invalid CSRF on fresh clients.","Obtain an unused A link privately; POST empty/P_invalid passwords with valid CSRF and a documented-valid password with missing/invalid CSRF; inspect responses and captured state."],
+      "expected_results":["Invalid addresses have readable field-associated, account-independent feedback; untrusted CSRF requests are rejected without issuing a link. No particular invalid-input HTTP status or equality between different invalid-value classes is prescribed.","Invalid passwords have field-associated feedback; rejected request/reset inputs do not change hash, consume token, bump session version, record notice or claim success."],
+      "source_references":[{"source_type":"user_story","source_id":"user_story","locator":"characters 0-16000"},{"source_type":"knowledge","source_id":"4d3e7857-9fa5-49cc-a86a-33bcf67fabee","locator":"v1, chunk 0"}]
+    },
+    {
+      "id":"TC-021","title":"Concurrent fifth/sixth issuance ceiling","requirement_ids":["REQ-004"],"task_ids":["TASK-001","TASK-005","TASK-010"],
+      "steps":["Preconditions/data: fresh A with four honored links at fixed UTC t0, two independent CSRF-valid clients and synchronized test barrier; hold clock at t0 + 1 second.","Release two concurrent valid requests for normalized A (one mixed-case variant); inspect both public responses and locked private count/outbox."],
+      "expected_results":["Exactly one additional link is issued, totaling five; no interleaving permits six or duplicate issuance.","Both public responses are indistinguishable on account-dependent surfaces and reveal neither winner nor throttle state."],
+      "source_references":[{"source_type":"knowledge","source_id":"4d3e7857-9fa5-49cc-a86a-33bcf67fabee","locator":"v1, chunk 0"}]
+    },
+    {
+      "id":"TC-022","title":"Concurrent redemption commits at most once","requirement_ids":["REQ-005","REQ-006","REQ-007","REQ-009"],"task_ids":["TASK-007","TASK-009","TASK-011"],
+      "steps":["Preconditions/data: fresh unused A link at t0, clock held at t0 + 1 minute; two clients with independent valid CSRF and distinct documented-valid P_new1/P_new2; snapshot A hash/version and empty notice sink.","Release simultaneous POSTs to the same token using a barrier; compare responses, final hash, consumed token, session version and notices."],
+      "expected_results":["Exactly one POST commits and may claim success; the loser cannot report success or overwrite the winner's password, whose chosen credential alone authenticates.","The token is consumed once, A's version changes once and exactly one A-owner notice is appended; fixed time excludes expiry as the cause."],
+      "source_references":[{"source_type":"user_story","source_id":"user_story","locator":"characters 0-16000"},{"source_type":"knowledge","source_id":"4d3e7857-9fa5-49cc-a86a-33bcf67fabee","locator":"v1, chunk 0"}]
+    },
+    {
+      "id":"TC-023","title":"Notification failure rolls back process-local reset","requirement_ids":["REQ-005","REQ-008","REQ-009"],"task_ids":["TASK-007","TASK-008","TASK-009","TASK-011"],
+      "steps":["Preconditions/data: fresh unused A link, two independently active A sessions and one B session, valid CSRF and documented-valid P_new1 before expiry; snapshot hash, token, versions and sink. Inject an in-process sink-append failure, including a variant throwing after partial append.","Submit the otherwise valid reset and inspect public result, private state and guarded access from A's two clients and B's client."],
+      "expected_results":["No success is claimed and no inconsistent partial success remains: A hash, token usability, A/B versions and sink contents match the pre-call snapshot, including no orphan notice after partial append.","A and B sessions retain pre-failure access. This is a proposed process-local rollback check, not a durable distributed-transaction claim."],
+      "source_references":[{"source_type":"user_story","source_id":"user_story","locator":"characters 0-16000"},{"source_type":"knowledge","source_id":"4d3e7857-9fa5-49cc-a86a-33bcf67fabee","locator":"v1, chunk 0"}]
+    },
+    {
+      "id":"TC-024","title":"Keyboard, labels, errors and announced outcomes","requirement_ids":["REQ-001","REQ-002","REQ-003","REQ-005","REQ-006","REQ-007"],"task_ids":["TASK-002","TASK-004","TASK-006","TASK-007","TASK-010","TASK-011"],
+      "steps":["Preconditions/data: keyboard-only client and accessibility-tree/screen-reader inspection for pictured sign-in and proposed request, confirmation, new-password, success and unusable-link views; arrange empty/invalid inputs and expired link.","Tab and keyboard-activate links, submit and retry controls in each view; inspect focus order, visible focus, accessible names/labels and readable contrast.","Trigger invalid input and success/non-success transitions; inspect field-error association and whether focus reaches or announces each outcome."],
+      "expected_results":["No keyboard trap; implemented views have logical focus order, visible focus, programmatic labels, discernible button/link names and readable contrast.","Errors are readable and associated with fields; outcomes are focused or announced; success is never announced before commit and unusable links never announce success. These behaviors and recovery views are proposals, not image-observed facts."],
+      "source_references":[{"source_type":"user_story","source_id":"user_story","locator":"characters 0-16000"},{"source_type":"attachment","source_id":"c2d1eadb-60f9-4b3e-a07e-956604ee291e","locator":"sign-in-wireframe.png"},{"source_type":"knowledge","source_id":"4d3e7857-9fa5-49cc-a86a-33bcf67fabee","locator":"v1, chunk 0"}]
+    },
+    {
+      "id":"TC-025","title":"Unusable tokens and issued-link non-disclosure","requirement_ids":["REQ-003","REQ-005","REQ-006","REQ-007","REQ-011"],"task_ids":["TASK-001","TASK-004","TASK-005","TASK-006","TASK-007","TASK-011"],
+      "steps":["Preconditions/data: separate fixtures with unknown opaque token, consumed A token and unused A token at t0 + 30 minutes; prepare valid CSRF and documented-valid P_new1 for attempted POSTs and snapshot hashes, versions and sink.","GET and POST each token; inspect response, cookies, HTML, ordinary logs, headers and outgoing asset URLs. Independently issue an eligible A link and inspect public request/confirmation and private outbox.","Inspect proposed token-page Cache-Control: no-store, Referrer-Policy: no-referrer, absence of third-party assets and redaction of token path segments in ordinary logs."],
+      "expected_results":["Unknown, used and expired token URLs yield recoverable non-success/new-request behavior without password mutation, version bump, notice or success claim. Issued tokens occur only in the private process-local test outbox, not public confirmation, cookies, ordinary logs or page body.","Token-page policies and log/asset constraints match approved design proposals; a private outbox proves neither external link delivery nor production-grade confidentiality."],
+      "source_references":[{"source_type":"user_story","source_id":"user_story","locator":"characters 0-16000"},{"source_type":"knowledge","source_id":"4d3e7857-9fa5-49cc-a86a-33bcf67fabee","locator":"v1, chunk 0"}]
+    }
+  ]
+}

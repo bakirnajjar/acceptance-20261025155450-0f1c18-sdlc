@@ -1,0 +1,160 @@
+{
+  "schema_version": "1.0",
+  "stage": "custom_document",
+  "stage_key": "acceptance_20261025155450_0f1c18_risk",
+  "summary": "Eight prospective delivery risks cover every approved requirements_analysis identifier REQ-001 through REQ-014 for the synthetic Flask password-reset demonstration. Priorities are planning judgments, not measured likelihoods or findings about an existing implementation.",
+  "sections": [
+    {
+      "heading": "Scope and interpretation",
+      "body": "This register traces only the approved requirements_analysis requirements. Each risk describes a possible failure mode, its impact, and a practical mitigation or verification; it does not report an observed defect, claim production readiness, or authorize deployment. The sign-in image supports visible controls and placement, not authentication behavior, responsive breakpoints, or pixel measurements."
+    },
+    {
+      "heading": "Priority method and evidence",
+      "body": "Must denotes a failure that would materially defeat a stated reset, safety, test, or scope constraint; should denotes an important presentation or documentation gap with a narrower direct effect. These are planning priorities rather than estimates of probability. Evidence is limited to the pinned story, the sign-in-wireframe.png attachment, and the current-run account recovery standard (ACC-STD-01 through ACC-STD-03); REQ identifiers trace the approved requirements_analysis predecessor without asserting an unprovided stage-output locator."
+    }
+  ],
+  "items": [
+    {
+      "id": "REA6D7-001",
+      "title": "Sign-in presentation or reset entry point diverges from the supplied wireframe",
+      "description": "Failure mode: the server-rendered sign-in card could omit a labeled field, the name@example.com hint or masked password example, place the blue 'Forgot password?' link away from beneath Password, omit the dark Sign in button or administrator text, or leave the link unable to start a reset request. Impact: visitors cannot recognize or enter the specified recovery flow. Mitigation/verification: compare the rendered bordered card, Sign in heading, field labels, hint, masked example, link, button and text with the supplied image; exercise the link through the reset-request entry point. Priority should is a planning judgment because a presentation/entry gap matters but does not by itself establish a reset security failure; no authentication behavior, pixel metric or breakpoint is inferred.",
+      "category": "presentation and entry",
+      "priority": "should",
+      "requirement_ids": ["REQ-001", "REQ-002"],
+      "related_ids": [],
+      "source_references": [
+        {"source_type": "user_story", "source_id": "user_story", "locator": "characters 0-16000"},
+        {"source_type": "attachment", "source_id": "c2d1eadb-60f9-4b3e-a07e-956604ee291e", "locator": "sign-in-wireframe.png"},
+        {"source_type": "knowledge", "source_id": "4d3e7857-9fa5-49cc-a86a-33bcf67fabee", "locator": "v1, chunk 0"}
+      ]
+    },
+    {
+      "id": "REA6D7-002",
+      "title": "Response parity or hourly request limit fails at account and threshold edges",
+      "description": "Failure mode: an existing and nonexistent identifier could receive distinguishable reset-request responses, especially at a rate limit, or a sixth request for a synthetic account within an hour could be honored while an eligible request among the first five is blocked. Impact: account existence could be disclosed or the required per-account ceiling/availability violated. Mitigation/verification: compare otherwise equivalent existing/nonexistent responses, including the applicable limit edge, while independently checking that requests one through five can be honored and a sixth in the hour cannot produce an additional honored request. Keep response parity regardless of the unresolved nonexistent-identifier counting and precise hourly-window algorithm. Priority must is a planning judgment because parity and the five-per-account-per-hour rule are express ACC-STD-01 constraints, not because a defect or likelihood was observed.",
+      "category": "request handling",
+      "priority": "must",
+      "requirement_ids": ["REQ-003", "REQ-004"],
+      "related_ids": [],
+      "source_references": [
+        {"source_type": "knowledge", "source_id": "4d3e7857-9fa5-49cc-a86a-33bcf67fabee", "locator": "v1, chunk 0"}
+      ]
+    },
+    {
+      "id": "REA6D7-003",
+      "title": "Reset link permits replay or violates the thirty-minute boundary",
+      "description": "Failure mode: an issued unused link might fail to change the synthetic account's password before expiry, a used link might change it again, or a link might work at or after 30 minutes from issue. Impact: legitimate recovery can fail or an old/replayed link can change a password outside its permitted use. Mitigation/verification: exercise a valid unused link before expiry, attempt reuse after one successful reset, and check completion just before versus at and after 30 minutes from issue using controlled time; verify the password only changes in the allowed case. An in-memory test mechanism may expose links for inspection without presuming email delivery or a link format. Priority must is a planning judgment because valid recovery, single use and expiry are express ACC-STD-02 behavior, not observed faults.",
+      "category": "reset links",
+      "priority": "must",
+      "requirement_ids": ["REQ-005", "REQ-006", "REQ-007"],
+      "related_ids": [],
+      "source_references": [
+        {"source_type": "user_story", "source_id": "user_story", "locator": "characters 0-16000"},
+        {"source_type": "knowledge", "source_id": "4d3e7857-9fa5-49cc-a86a-33bcf67fabee", "locator": "v1, chunk 0"}
+      ]
+    },
+    {
+      "id": "REA6D7-004",
+      "title": "A successful reset leaves another active session signed in",
+      "description": "Failure mode: invalidating only the session submitting a reset could leave other active sessions for the same synthetic account usable. Impact: the required account-wide sign-out after recovery is not achieved. Mitigation/verification: establish multiple synthetic active sessions for one account, complete a valid password reset, then check that every previously active session is signed out; do not assume the pictured Sign in button implements a complete authentication policy. Priority must is a planning judgment because all-session sign-out is an explicit ACC-STD-02 postcondition, not an observed implementation defect.",
+      "category": "session invalidation",
+      "priority": "must",
+      "requirement_ids": ["REQ-008"],
+      "related_ids": [],
+      "source_references": [
+        {"source_type": "knowledge", "source_id": "4d3e7857-9fa5-49cc-a86a-33bcf67fabee", "locator": "v1, chunk 0"}
+      ]
+    },
+    {
+      "id": "REA6D7-005",
+      "title": "A successful reset lacks its own owner notification",
+      "description": "Failure mode: the in-memory sink could record no owner notification, notify the wrong synthetic account, or record only one entry across multiple successful resets. Impact: an account owner would lack a record for each successful reset in the demonstration. Mitigation/verification: perform distinct successful resets and inspect the in-memory notification sink for an owner-directed record for each success; do not treat sink entries as proof of external delivery. Priority must is a planning judgment because notification after every success is an explicit ACC-STD-03 postcondition, not an assertion that delivery already fails.",
+      "category": "notifications",
+      "priority": "must",
+      "requirement_ids": ["REQ-009", "REQ-011"],
+      "related_ids": [],
+      "source_references": [
+        {"source_type": "user_story", "source_id": "user_story", "locator": "characters 0-16000"},
+        {"source_type": "knowledge", "source_id": "4d3e7857-9fa5-49cc-a86a-33bcf67fabee", "locator": "v1, chunk 0"}
+      ]
+    },
+    {
+      "id": "REA6D7-006",
+      "title": "Implementation constraints or production-limitations documentation drift",
+      "description": "Failure mode: the demonstration could target a different runtime/framework or client-render pages, replace synthetic accounts or the in-memory notification sink with unrequested external services, or omit the limits of synthetic and in-memory state in its documentation. Impact: the deliverable would no longer match the small Python 3.12 Flask server-rendered demonstration, and readers could mistake in-memory behavior for production readiness. Mitigation/verification: inspect runtime configuration, Flask routes and rendered pages, synthetic fixtures and sink, and documentation that calls out synthetic-account/in-memory state and notification limitations without implying production readiness or requiring a specific exhaustive checklist. Priority should is a planning judgment because these constraints and caveats affect faithful delivery and interpretation; no production condition or implementation is evidenced.",
+      "category": "architecture and limitations",
+      "priority": "should",
+      "requirement_ids": ["REQ-010", "REQ-011", "REQ-013"],
+      "related_ids": [],
+      "source_references": [
+        {"source_type": "user_story", "source_id": "user_story", "locator": "characters 0-16000"}
+      ]
+    },
+    {
+      "id": "REA6D7-007",
+      "title": "Pytest checks miss the cross-cutting acceptance edges",
+      "description": "Failure mode: automated tests might cover only a successful reset while omitting card/entry checks, existing-versus-nonexistent response parity, the fifth/sixth hourly request edge, successful password change, replay, just-before/at-or-after-30-minute expiry, all-session sign-out, or an owner notification after each of multiple successes. Impact: an unmet approved criterion could escape verification. Mitigation/verification: run pytest and map explicit assertions for those cases to REQ-001 through REQ-009 and the stated automated-test requirement, using synthetic accounts and controlled time as appropriate; report missing coverage rather than claiming tests have run. Priority must is a planning judgment because automated acceptance coverage is an explicit deliverable and protects the reset constraints; no test result is available here.",
+      "category": "test coverage",
+      "priority": "must",
+      "requirement_ids": ["REQ-012"],
+      "related_ids": [],
+      "source_references": [
+        {"source_type": "user_story", "source_id": "user_story", "locator": "characters 0-16000"},
+        {"source_type": "knowledge", "source_id": "4d3e7857-9fa5-49cc-a86a-33bcf67fabee", "locator": "v1, chunk 0"}
+      ]
+    },
+    {
+      "id": "REA6D7-008",
+      "title": "Delivery accidentally includes deployment or deployment workflows",
+      "description": "Failure mode: a release step, deployed environment, or new deployment workflow could be included despite the story's exclusion. Impact: delivery would exceed the authorized demonstration scope. Mitigation/verification: review the final change list and execution record to confirm no deployment took place and no deployment workflow was added; keep this document and its checks local. Priority must is a planning judgment because the exclusion is explicit, not evidence that deployment occurred.",
+      "category": "scope control",
+      "priority": "must",
+      "requirement_ids": ["REQ-014"],
+      "related_ids": [],
+      "source_references": [
+        {"source_type": "user_story", "source_id": "user_story", "locator": "characters 0-16000"}
+      ]
+    }
+  ],
+  "source_references": [
+    {"source_type": "user_story", "source_id": "user_story", "locator": "characters 0-16000"},
+    {"source_type": "attachment", "source_id": "c2d1eadb-60f9-4b3e-a07e-956604ee291e", "locator": "sign-in-wireframe.png"},
+    {"source_type": "knowledge", "source_id": "4d3e7857-9fa5-49cc-a86a-33bcf67fabee", "locator": "v1, chunk 0"}
+  ],
+  "assumptions": [
+    "This is a prospective delivery-risk assessment, not an implementation audit: actual defects, likelihoods, test outcomes and production readiness are unknown.",
+    "The approved requirements_analysis predecessor supplies REQ-001 through REQ-014; its file is used for identifier traceability, not cited through an invented stage_output source locator.",
+    "A1: Check observed sign-in controls and active-session invalidation without assuming the pictured Sign in button has a complete login/authentication policy; tests may establish synthetic sessions.",
+    "A2: Preserve existing/nonexistent response parity and the five-per-account-per-hour limit without prescribing nonexistent-identifier counting or fixed versus rolling hourly-window internals.",
+    "A3: Preserve the image's observed content and relative placement without adding pixel measurements or responsive breakpoint obligations.",
+    "A4: Issued links may be inspected through an in-memory test mechanism; neither external email delivery nor a particular link format is assumed.",
+    "A5: Check valid-link password change and documented synthetic/in-memory production limitations without inventing password-complexity rules or an exhaustive production checklist."
+  ],
+  "open_questions": [
+    {
+      "question": "Must the pictured sign-in button authenticate synthetic accounts, or is the depicted UI plus session behavior needed to demonstrate reset sign-out sufficient?",
+      "blocking": false,
+      "context": "A1 limits checks to observed controls and invalidation of synthetic active sessions."
+    },
+    {
+      "question": "How should requests for nonexistent identifiers be counted or limited while responses remain identical, and what precise hourly-window algorithm should apply?",
+      "blocking": false,
+      "context": "A2 leaves accounting and window internals open while retaining parity and the five-per-account-per-hour rule."
+    },
+    {
+      "question": "How precisely should the sign-in wireframe be reproduced at other viewport sizes, and should the examples be literal content?",
+      "blocking": false,
+      "context": "A3 uses observed labels, examples, structure and relative placement without pixel or breakpoint targets."
+    },
+    {
+      "question": "How should an issued reset link be conveyed or inspected in this synthetic application?",
+      "blocking": false,
+      "context": "A4 allows in-memory inspection without specifying a link format or external delivery."
+    },
+    {
+      "question": "What exact password rules and production-limitations topics are expected?",
+      "blocking": false,
+      "context": "A5 does not add complexity rules or an exhaustive checklist beyond valid-link change and synthetic/in-memory limitations."
+    }
+  ]
+}

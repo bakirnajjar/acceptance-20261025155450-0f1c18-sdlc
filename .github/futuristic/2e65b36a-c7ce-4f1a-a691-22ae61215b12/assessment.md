@@ -1,0 +1,16 @@
+# Requirements analysis: evidence assessment
+
+## Evidence reviewed
+
+- Pinned story, `{source_type: user_story, source_id: user_story, locator: "characters 0-16000"}`: A small password-reset application using Python 3.12, Flask, server-rendered pages and pytest; synthetic accounts, an in-memory notification sink, production-limitations documentation and automated tests. Deployment and deployment workflows are explicitly out of scope. The complete story has no end marker.
+- Supplied image, `{source_type: attachment, source_id: c2d1eadb-60f9-4b3e-a07e-956604ee291e, locator: "sign-in-wireframe.png"}`: A bordered sign-in card has a "Sign in" heading; labeled "Email address" and "Password" fields with `name@example.com` and masked-password examples; a "Forgot password?" link below the password field; a dark "Sign in" button; and "No account? Contact your administrator." beneath the button. No acceptance marker is visible in the image. The attachment reader supplies a reference, not extracted image text; these details are direct visual observations of the pinned image.
+- Curated account recovery standard for this run, `{source_type: knowledge, source_id: 4d3e7857-9fa5-49cc-a86a-33bcf67fabee, locator: "v1, chunk 0"}`: ACC-STD-01 requires a reset-request link on sign-in, an identical response for existing and nonexistent accounts, and a limit of five reset requests per account per hour. ACC-STD-02 requires single-use links expiring 30 minutes after issue and sign-out from every active session upon successful reset. ACC-STD-03 requires owner notification after every successful reset. The search also returned identical excerpts from other runs; use this run's matching source reference.
+- No approved prior-stage outputs or additional supplied attachments were available. The repository README only identifies a synthetic SDLC acceptance repository and supplies no product requirements.
+
+## Analysis for the planned contract
+
+Separate the observable sign-in layout, reset-request initiation, response parity, rate limit, link consumption and expiry, session invalidation, owner notification, implementation/test constraints, production-limitations documentation, and prohibition on deployment into individually traceable requirements. Apply Given/When/Then criteria to functional behaviors without inventing unspecified password rules, token formats, email delivery or deployment details. The standard's numeric limits are supported explicitly; no other numeric performance or security targets are evidenced.
+
+Potential non-blocking ambiguities to record with explicit assumptions rather than silently resolving: whether sign-in must authenticate synthetic accounts beyond providing the depicted UI and session behavior needed for sign-out; exact request-limit handling for nonexistent accounts without account disclosure; visual precision/responsive design beyond the observed wireframe; and what production limitations must cover. No request for real accounts, external email infrastructure, or production deployment is supported.
+
+The future contract must include an assumption beginning `acceptance-20261025155450-0f1c18-skill-sentinel` followed by a short note that the acceptance skill produced the output. Neither the complete story nor the visually reviewed attachment supplied an end or acceptance marker to copy.
