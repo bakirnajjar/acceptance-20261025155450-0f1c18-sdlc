@@ -1,9 +1,10 @@
 # Password reset demo scaffold
 
 A Python 3.12 Flask/Jinja2 project managed by [uv](https://docs.astral.sh/uv/).
-This initial scaffold provides an app factory and package-relative base template;
-it does **not** implement sign-in or password-reset routes yet. No real accounts,
-messages, or deployment are configured.
+The app factory provides a package-relative Jinja base template, separate
+in-memory synthetic A/B stores per app and signed sessions. Sign-in and reset
+routes are **not** implemented yet. No real accounts, messages, or deployment
+are configured.
 
 ## Local setup
 
@@ -15,12 +16,17 @@ uv sync --locked --python 3.12
 
 Dependencies (Flask, pytest, and Ruff) are pinned in `pyproject.toml` and
 resolved in `uv.lock`. The project installs from `src/password_reset_demo`.
-No environment variables are required for the scaffold.
+Set `PASSWORD_RESET_SESSION_SECRET` to a private random signing secret before
+running the app (or creating it outside tests). It is required; do not commit
+or print its value. CSRF tokens are generated separately within each signed
+client session, independently of account lookup. Store state, including
+synthetic password hashes, is process-local; no recovery links are issued yet.
 
 ## Run locally
 
 ```sh
-uv run --locked --python 3.12 flask --app 'password_reset_demo:create_app' run
+PASSWORD_RESET_SESSION_SECRET='<private random value>' \
+  uv run --locked --python 3.12 flask --app 'password_reset_demo:create_app' run
 ```
 
 The development server starts on `http://127.0.0.1:5000/`. All paths currently
