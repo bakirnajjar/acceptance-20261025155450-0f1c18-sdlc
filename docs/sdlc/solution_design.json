@@ -1,0 +1,230 @@
+{
+  "schema_version": "1.1",
+  "stage": "solution_design",
+  "source_references": [
+    {"source_type": "user_story", "source_id": "user_story", "locator": "characters 0-8000"},
+    {"source_type": "attachment", "source_id": "c2d1eadb-60f9-4b3e-a07e-956604ee291e", "locator": "sign-in-wireframe.png"},
+    {"source_type": "knowledge", "source_id": "4d3e7857-9fa5-49cc-a86a-33bcf67fabee", "locator": "v1, chunk 0"}
+  ],
+  "assumptions": [
+    "The only image-observed screen is the sign-in card. Its field examples are treated as presentation hints, not prefilled credentials; sign-in behavior and every recovery screen are proposed.",
+    "A minimal synthetic sign-in and guarded demonstration route make account-wide session invalidation observable, without defining a production authentication policy.",
+    "A synchronized process-local store with an injectable UTC clock, a private reset-link outbox and a separate in-memory owner-notification sink is sufficient for this demonstration; no actual email delivery is implied.",
+    "Use a rolling 3600-second window and private counters for normalized nonexistent identifiers as design choices, while retaining the required five-per-account-per-hour ceiling and identical public responses.",
+    "A documented minimal password-input rule will be chosen for the prototype; no password-complexity policy is evidenced.",
+    "Approved predecessor REQ-001 through REQ-014 identifiers are used for coverage. The authorized prior-stage reads supplied no citable stage_output locator, so none is invented. No application, dependency manifest, executable test command or implementation result has been verified."
+  ],
+  "open_questions": [
+    {"question": "Should the pictured Sign in button authenticate synthetic accounts, or should tests establish sessions without a user-facing sign-in handler?", "blocking": false, "context": "This proposal uses minimal synthetic sign-in solely to exercise all-session invalidation; the image does not establish an authentication policy."},
+    {"question": "Are the email and masked-password examples intended as placeholders, and what responsive fidelity is expected?", "blocking": false, "context": "Only their appearance, card structure, labels and relative placement are observed; no pixels, populated values or breakpoints are established."},
+    {"question": "Should issued links be inspectable only by tests or also through a local-only demonstrator mechanism?", "blocking": false, "context": "The proposal uses a private in-memory owner-directed outbox, never a public confirmation or external delivery."},
+    {"question": "Is the proposed rolling-hour window with private nonexistent-identifier accounting acceptable?", "blocking": false, "context": "The standard fixes a five-per-account-per-hour limit and identical existing/nonexistent responses, not the algorithm."},
+    {"question": "What minimal password-input rule and recovery-page wording should be used?", "blocking": false, "context": "Neither a password-complexity rule nor recovery screens are supplied; choices must not weaken the reset constraints."}
+  ],
+  "architecture_summary": "Proposed Python 3.12 Flask/Jinja2 server-rendered synthetic password-reset demonstrator, not an existing implementation: browser forms call sign-in and recovery routes backed by one locked, per-app in-memory account/reset/session store and injected UTC clock. A private outbox holds issued links; a distinct in-memory sink records an owner notice for each successful reset. Normalized-address rolling-hour accounting silently suppresses a sixth honored request while every equivalent valid public request has the same neutral redirect and confirmation. Opaque digest-indexed links are valid only before issue time plus 30 minutes, checked and consumed at reset commit under the store lock; the same process-local success transition changes the password hash, increments an account session version checked on every guarded request, and appends the notice before success is reported. The sign-in card is image-observed; all recovery pages, routes and synthetic sign-in behavior are design proposals. State, counters, links and notices are volatile, without durable migrations, real delivery, deployment or production-readiness claims.",
+  "tech_stack": {
+    "runtime": "Python 3.12",
+    "languages": ["Python", "HTML", "CSS"],
+    "frameworks": ["Flask", "Jinja2", "pytest"],
+    "package_manager": null
+  },
+  "hosting": {"kind": "none", "notes": "Local-only synthetic demonstrator; no deployment or deployment workflows."},
+  "quality_gates": null,
+  "tasks": [
+    {
+      "id": "TASK-001",
+      "title": "Scaffold isolated Flask state and clock",
+      "description": "Establish Python 3.12 runtime/dependency metadata, Flask app factory and Jinja base. Define per-app synthetic accounts with hashed passwords, a locked in-memory store for normalized email keys, timestamps, digest-indexed reset records and session versions, an owner-directed link outbox, a separate owner-notification sink and an injectable aware UTC clock. Configure signed session cookies and account-independent CSRF state for local/test use without tracking secrets; this is not a durable migration.",
+      "requirement_ids": ["REQ-010", "REQ-011"],
+      "acceptance_criteria": [
+        "A Python 3.12 Flask app instance renders a server-side template without a database, real-account service or external notification service.",
+        "Two app instances have isolated synthetic accounts, counters, tokens, session versions, outbox and sink; a fake UTC clock can advance each deterministically.",
+        "Fixture credentials use password hashes, reset records are indexed by token digest rather than raw token, and synchronization is available for later atomic transitions."
+      ],
+      "depends_on": [],
+      "source_references": [
+        {"source_type": "user_story", "source_id": "user_story", "locator": "characters 0-8000"},
+        {"source_type": "knowledge", "source_id": "4d3e7857-9fa5-49cc-a86a-33bcf67fabee", "locator": "v1, chunk 0"}
+      ]
+    },
+    {
+      "id": "TASK-002",
+      "title": "Render sign-in and reset-entry forms",
+      "description": "Render the observed sign-in card on GET / and propose GET /forgot-password with a labeled email field, CSRF form state, keyboard-operable controls, field-associated feedback and a return path. Preserve observed copy/order/relative placement without assuming pixels, breakpoints, populated credentials, sign-in behavior or a pictured recovery screen. Prepare the sign-in form for the next slice.",
+      "requirement_ids": ["REQ-001", "REQ-002", "REQ-010"],
+      "acceptance_criteria": [
+        "A server-rendered white canvas has one centered outlined card with bold Sign in, labeled Email address and Password fields, a name@example.com hint and masked ******** example, neither exposed as prefilled credentials.",
+        "Blue underlined Forgot password? appears immediately below Password; a dark full-width Sign in button follows; gray No account? Contact your administrator. appears beneath the button.",
+        "Activating Forgot password? opens a proposed labeled reset-request form with usable focus order and associated validation feedback."
+      ],
+      "depends_on": ["TASK-001"],
+      "source_references": [
+        {"source_type": "user_story", "source_id": "user_story", "locator": "characters 0-8000"},
+        {"source_type": "attachment", "source_id": "c2d1eadb-60f9-4b3e-a07e-956604ee291e", "locator": "sign-in-wireframe.png"},
+        {"source_type": "knowledge", "source_id": "4d3e7857-9fa5-49cc-a86a-33bcf67fabee", "locator": "v1, chunk 0"}
+      ]
+    },
+    {
+      "id": "TASK-003",
+      "title": "Demonstrate guarded synthetic sessions",
+      "description": "Add minimal CSRF-checked POST /sign-in for synthetic credentials and a guarded demonstration view. Put account ID and current account session version into each independently signed Flask cookie; check the version against the store on every authenticated request and clear/reject stale sessions. This tests invalidation rather than specifying a complete sign-in policy.",
+      "requirement_ids": ["REQ-008", "REQ-010", "REQ-011"],
+      "acceptance_criteria": [
+        "Two independent clients can sign in to one synthetic account and access a guarded view; invalid credentials create no authenticated session.",
+        "After that account's version changes, both clients' next guarded requests are unauthenticated while another account's unchanged session remains usable.",
+        "A signed cookie cannot bypass the store version guard; no real identity provider or durable session service is introduced."
+      ],
+      "depends_on": ["TASK-001", "TASK-002"],
+      "source_references": [
+        {"source_type": "user_story", "source_id": "user_story", "locator": "characters 0-8000"},
+        {"source_type": "attachment", "source_id": "c2d1eadb-60f9-4b3e-a07e-956604ee291e", "locator": "sign-in-wireframe.png"},
+        {"source_type": "knowledge", "source_id": "4d3e7857-9fa5-49cc-a86a-33bcf67fabee", "locator": "v1, chunk 0"}
+      ]
+    },
+    {
+      "id": "TASK-004",
+      "title": "Return neutral reset-request responses",
+      "description": "Implement CSRF-checked POST /forgot-password and static GET /reset-requested. For syntactically valid addresses always issue the same 303 redirect, location, public headers/cookies and neutral confirmation regardless of account existence or throttle state. Initialize CSRF state independently of lookup. A private service hook, filled by TASK-005, handles issuance without echoing account or token data.",
+      "requirement_ids": ["REQ-002", "REQ-003", "REQ-010"],
+      "acceptance_criteria": [
+        "Equivalent valid existing and nonexistent submissions have identical public redirect, destination content and account-dependent headers/cookies, without asserting delivery or exposing an address or token.",
+        "Empty or malformed addresses receive the same accessible field error regardless of account existence, before lookup.",
+        "The private issuance handoff cannot change the public response; end-to-end issuance is completed in TASK-005."
+      ],
+      "depends_on": ["TASK-001", "TASK-002"],
+      "source_references": [
+        {"source_type": "user_story", "source_id": "user_story", "locator": "characters 0-8000"},
+        {"source_type": "knowledge", "source_id": "4d3e7857-9fa5-49cc-a86a-33bcf67fabee", "locator": "v1, chunk 0"}
+      ]
+    },
+    {
+      "id": "TASK-005",
+      "title": "Enforce rolling-hour issuance ceiling",
+      "description": "Fill the private request-service hook under the store lock. For a normalized key at UTC t, discard timestamps <= t minus 3600 seconds, and honor an existing-account issuance only if fewer than five remain; record t when honored. Apply the same private counter policy to nonexistent keys without issuing a link. For eligible existing accounts create a cryptographically random opaque URL-safe bearer token, store its digest/issue/expiry and put its URL only in the owner-directed in-memory test outbox. Suppress the sixth within the hour without a public difference.",
+      "requirement_ids": ["REQ-003", "REQ-004", "REQ-005", "REQ-011"],
+      "acceptance_criteria": [
+        "An existing account gets five private links for five eligible requests, none for a sixth before the oldest timestamp is one hour old, and another at exactly that boundary; concurrent requests cannot exceed five.",
+        "Nonexistent keys get no link; existing, nonexistent, under-limit and throttled equivalent valid requests retain identical public status, redirect, confirmation and account-dependent headers/cookies.",
+        "Tokens appear only in the private process-local outbox, not a public response, cookie or ordinary log; there is no external email service."
+      ],
+      "depends_on": ["TASK-001", "TASK-004"],
+      "source_references": [
+        {"source_type": "user_story", "source_id": "user_story", "locator": "characters 0-8000"},
+        {"source_type": "knowledge", "source_id": "4d3e7857-9fa5-49cc-a86a-33bcf67fabee", "locator": "v1, chunk 0"}
+      ]
+    },
+    {
+      "id": "TASK-006",
+      "title": "Present usable or unusable reset links",
+      "description": "Propose GET /reset/<token> and a recoverable non-success view. Digest-lookup without consuming the token; render a labeled, CSRF-protected new-password form only if unused and now < issued_at + 30 minutes. Set no-store and no-referrer response policies, omit third-party assets and mask token path segments in logs. Neither recovery view is image-observed.",
+      "requirement_ids": ["REQ-005", "REQ-006", "REQ-007", "REQ-010"],
+      "acceptance_criteria": [
+        "An unused link before expiry opens a server-rendered password form without consumption; unknown, used and expired links show no success claim and offer a new-request path.",
+        "At exactly issue time plus 30 minutes, or after, the form is unavailable; a prior valid GET does not promise success on a later POST.",
+        "Token pages use Cache-Control: no-store and Referrer-Policy: no-referrer, omit third-party assets and do not echo tokens in ordinary page content."
+      ],
+      "depends_on": ["TASK-001", "TASK-005"],
+      "source_references": [
+        {"source_type": "user_story", "source_id": "user_story", "locator": "characters 0-8000"},
+        {"source_type": "knowledge", "source_id": "4d3e7857-9fa5-49cc-a86a-33bcf67fabee", "locator": "v1, chunk 0"}
+      ]
+    },
+    {
+      "id": "TASK-007",
+      "title": "Commit one-use password changes",
+      "description": "Implement CSRF-checked POST /reset/<token> and proposed generic GET /reset-complete. Validate a documented minimal password input; under the store lock recheck digest, unused state and strict now < expires_at at commit time. Change only the owning synthetic account's password hash and consume the token in a synchronized transition; structure this transition for TASK-008 session-version and TASK-009 notice effects. On in-process failure restore state and do not claim success.",
+      "requirement_ids": ["REQ-005", "REQ-006", "REQ-007"],
+      "acceptance_criteria": [
+        "A valid unused link submitted before 30 minutes changes only its owning account's hashed password, makes the old password invalid and redirects to success only after commit.",
+        "At or after exactly 30 minutes, or after prior consumption, GET/POST cannot complete another password change or claim success; concurrent POSTs yield at most one success.",
+        "A valid GET followed by a POST at expiry fails; invalid password input has associated feedback and leaves password and token unchanged."
+      ],
+      "depends_on": ["TASK-001", "TASK-006"],
+      "source_references": [
+        {"source_type": "user_story", "source_id": "user_story", "locator": "characters 0-8000"},
+        {"source_type": "knowledge", "source_id": "4d3e7857-9fa5-49cc-a86a-33bcf67fabee", "locator": "v1, chunk 0"}
+      ]
+    },
+    {
+      "id": "TASK-008",
+      "title": "Revoke every prior account session",
+      "description": "Extend TASK-007's locked successful-reset transition to increment the owning account session version with password mutation and token consumption. Use TASK-003's version guard on every protected request; clear stale cookies on next access rather than relying on browser-only sign-out.",
+      "requirement_ids": ["REQ-008"],
+      "acceptance_criteria": [
+        "After a successful reset, at least two distinct previously signed-in clients for the owner, including the resetter if signed in, fail their next guarded requests; an unrelated account remains signed in.",
+        "Failed, expired and replayed resets do not change the version or revoke sessions.",
+        "Password change, token consumption and version bump form one process-local locked transition."
+      ],
+      "depends_on": ["TASK-003", "TASK-007"],
+      "source_references": [
+        {"source_type": "knowledge", "source_id": "4d3e7857-9fa5-49cc-a86a-33bcf67fabee", "locator": "v1, chunk 0"},
+        {"source_type": "user_story", "source_id": "user_story", "locator": "characters 0-8000"}
+      ]
+    },
+    {
+      "id": "TASK-009",
+      "title": "Record each successful owner notice",
+      "description": "Extend the same locked reset-success operation to prepare and append one owner-directed entry to the distinct in-memory notification sink for each committed reset, including a later reset via a fresh link. On an in-process sink failure restore state or abort without reporting success. A sink record does not prove external or durable delivery.",
+      "requirement_ids": ["REQ-009", "REQ-011"],
+      "acceptance_criteria": [
+        "Two distinct successful resets for one synthetic account produce two separate owner-addressed sink records, one for each success.",
+        "Expired, unknown, invalid-input, replayed and losing concurrent POST attempts produce no notification or false success.",
+        "A simulated in-process sink failure cannot leave a claimed successful password change without its record; no external notification service is added."
+      ],
+      "depends_on": ["TASK-007", "TASK-008"],
+      "source_references": [
+        {"source_type": "user_story", "source_id": "user_story", "locator": "characters 0-8000"},
+        {"source_type": "knowledge", "source_id": "4d3e7857-9fa5-49cc-a86a-33bcf67fabee", "locator": "v1, chunk 0"}
+      ]
+    },
+    {
+      "id": "TASK-010",
+      "title": "Test sign-in, parity and hourly edges",
+      "description": "Add pytest/Flask-client checks for the observed card and proposed reset entry, response parity for existing/nonexistent normalized keys and throttled states, and the fifth/sixth/rolling-hour boundaries using the fake clock and private outbox. Compare public response surfaces, not just copy.",
+      "requirement_ids": ["REQ-001", "REQ-002", "REQ-003", "REQ-004", "REQ-012"],
+      "acceptance_criteria": [
+        "Pytest checks observed card copy, controls and relative order and that Forgot password? opens a request form; no unseen recovery pixels or pictured authentication policy are asserted.",
+        "For equivalent existing/nonexistent requests, compare status, Location, redirect destination content and account-dependent headers/cookies below and at/above the limit; inspect the private outbox separately for no disclosure.",
+        "At fixed t0, the first five requests issue five existing-account links, a sixth at t0+3599 seconds issues none, and a request at t0+3600 seconds is eligible with unchanged public response; malformed inputs have account-independent errors."
+      ],
+      "depends_on": ["TASK-002", "TASK-004", "TASK-005"],
+      "source_references": [
+        {"source_type": "user_story", "source_id": "user_story", "locator": "characters 0-8000"},
+        {"source_type": "attachment", "source_id": "c2d1eadb-60f9-4b3e-a07e-956604ee291e", "locator": "sign-in-wireframe.png"},
+        {"source_type": "knowledge", "source_id": "4d3e7857-9fa5-49cc-a86a-33bcf67fabee", "locator": "v1, chunk 0"}
+      ]
+    },
+    {
+      "id": "TASK-011",
+      "title": "Test reset boundaries and effects",
+      "description": "Add isolated pytest cases with a fake aware UTC clock and multiple Flask clients for valid password changes, exact expiry, replay/concurrency, all-session invalidation, per-success owner notices, non-success UI and token response protections after TASK-009 integrates the effects.",
+      "requirement_ids": ["REQ-005", "REQ-006", "REQ-007", "REQ-008", "REQ-009", "REQ-012"],
+      "acceptance_criteria": [
+        "Separate links test successful completion one microsecond before issue+30 minutes, rejection exactly at and after it, and failure of a POST whose preceding GET was valid but whose commit time is expired.",
+        "Used or concurrently replayed links cannot change a password again or append another notice; invalid and expired attempts preserve password, version and notice count.",
+        "After a valid reset, two or more prior owner sessions are rejected while another account remains signed in; two distinct successful resets leave two owner-directed sink records. Run pytest on Python 3.12 and report actual outcomes."
+      ],
+      "depends_on": ["TASK-006", "TASK-007", "TASK-008", "TASK-009", "TASK-010"],
+      "source_references": [
+        {"source_type": "user_story", "source_id": "user_story", "locator": "characters 0-8000"},
+        {"source_type": "knowledge", "source_id": "4d3e7857-9fa5-49cc-a86a-33bcf67fabee", "locator": "v1, chunk 0"}
+      ]
+    },
+    {
+      "id": "TASK-012",
+      "title": "Document limitations and inspect delivery scope",
+      "description": "Document local setup, pytest execution, synthetic fixtures, private link inspection, volatile process-local counters/tokens/session versions/outbox/notification sink, process restart and multi-worker limitations, lack of real delivery and incomplete production security. Review final changes and execution record for deployment or new deployment workflows without adding such infrastructure.",
+      "requirement_ids": ["REQ-013", "REQ-014"],
+      "acceptance_criteria": [
+        "Project documentation identifies synthetic-account, in-memory and notification-delivery production limits without claiming production readiness.",
+        "Final deliverable review confirms no deployment occurred and no deployment workflow was added; local testing is not deployment.",
+        "No production service, durable migration, deployment configuration, workflow or hosted environment is introduced by this documentation/review task."
+      ],
+      "depends_on": ["TASK-010", "TASK-011"],
+      "source_references": [
+        {"source_type": "user_story", "source_id": "user_story", "locator": "characters 0-8000"}
+      ]
+    }
+  ],
+  "coverage_dispositions": []
+}
