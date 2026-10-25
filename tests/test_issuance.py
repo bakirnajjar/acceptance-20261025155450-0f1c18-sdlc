@@ -87,7 +87,7 @@ def assert_private_link(store, link, issued_at: datetime) -> str:
     return token
 
 
-def test_tc_005_006_first_fifth_sixth_and_exact_hour_boundary(setup) -> None:
+def test_tc_005_tc_006_first_fifth_sixth_and_exact_hour_boundary(setup) -> None:
     app, clock = setup
     store = app.extensions["reset_store"]
     client, csrf = ready_client(app)
@@ -138,7 +138,7 @@ def test_tc_005_006_first_fifth_sixth_and_exact_hour_boundary(setup) -> None:
 
 @pytest.mark.parametrize("initial_count", [0, 4, 5])
 @pytest.mark.parametrize("owner_first", [True, False])
-def test_tc_004_019_matched_owner_absent_parity_and_private_counts(
+def test_tc_004_tc_019_matched_owner_absent_parity_and_private_counts(
     setup, initial_count: int, owner_first: bool
 ) -> None:
     first_app, clock = setup
