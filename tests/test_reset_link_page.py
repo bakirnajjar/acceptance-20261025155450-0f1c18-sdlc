@@ -148,6 +148,105 @@ def test_tc_025_unusable_links_are_recoverable_without_password_form(
     assert store.owner_notice_sink == []
 
 
+@pytest.mark.parametrize("kind", ["unknown", "used", "exact_expiry", "after_expiry"])
+def test_tc_025_unusable_get_and_post_protect_public_surface_and_state(
+    setup, kind: str
+) -> None:
+    _app, clock, client, store, url, token, record = setup
+    with client.session_transaction() as session:
+        csrf = session["_csrf_token"]
+    if kind == "unknown":
+        url, token = "/reset/unknown-opaque-token", "unknown-opaque-token"
+    elif kind == "used":
+        assert (
+            client.post(
+                url,
+                data={"csrf_token": csrf, "password": "test"},
+            ).status_code
+            == 303
+        )
+    elif kind == "exact_expiry":
+        clock.value = record.expires_at
+    else:
+        clock.value = record.expires_at + timedelta(microseconds=1)
+
+    before = {
+        key: (account.password_hash, account.session_version)
+        for key, account in store.accounts.items()
+    }
+    consumed = record.consumed_at
+    notices = store.owner_notice_sink[:]
+    for response in (
+        client.get(url),
+        client.post(
+            url, data={"csrf_token": csrf, "password": "fake-later-replacement"}
+        ),
+    ):
+        assert response.status_code == (
+            200 if response.request.method == "GET" else 400
+        )
+        assert response.headers["Cache-Control"] == "no-store"
+        assert response.headers["Referrer-Policy"] == "no-referrer"
+        surface = str(response.headers) + response.get_data(as_text=True)
+        assert token not in surface
+        assert "/reset-complete" not in surface
+        assert "Password reset complete" not in surface
+        page = Page(response.get_data(as_text=True))
+        assert page.element("p", role="alert")
+        assert page.element("a", href="/forgot-password")
+        assert not any(tag in {"form", "input"} for tag, _ in page.nodes)
+        assert page.element("link", rel="stylesheet")["href"] == "/static/styles.css"
+        for tag, attributes in page.nodes:
+            if tag in {"script", "img", "link"}:
+                for attr in ("src", "href"):
+                    if attributes.get(attr):
+                        asset = attributes[attr]
+                        assert asset is not None
+                        assert asset.startswith("/") and not urlsplit(asset).netloc
+    with client.session_transaction() as session:
+        assert token not in str(dict(session))
+    assert {
+        key: (account.password_hash, account.session_version)
+        for key, account in store.accounts.items()
+    } == before
+    assert record.consumed_at == consumed
+    assert store.owner_notice_sink == notices
+
+
+def test_tc_025_eligible_private_link_never_enters_public_request_or_confirmation(
+    setup,
+) -> None:
+    _app, _clock, client, store, first_url, first_token, _record = setup
+    with client.session_transaction() as session:
+        csrf = session["_csrf_token"]
+    response = client.post(
+        "/forgot-password",
+        data={"email": "owner@example.test", "csrf_token": csrf},
+    )
+    assert (response.status_code, response.headers["Location"]) == (
+        303,
+        "/reset-requested",
+    )
+    second_url = store.owner_link_outbox[-1].url
+    assert second_url != first_url
+    second_token = second_url.removeprefix("/reset/")
+    confirmation = client.get("/reset-requested")
+    assert confirmation.status_code == 200
+    assert Page(confirmation.get_data(as_text=True)).element("p", role="status")
+    for public in (response, confirmation, client.get("/")):
+        surface = str(public.headers) + public.get_data(as_text=True)
+        assert first_token not in surface
+        assert second_token not in surface
+        assert first_url not in surface
+        assert second_url not in surface
+        assert "owner@example.test" not in surface
+    with client.session_transaction() as session:
+        assert first_token not in str(dict(session))
+        assert second_token not in str(dict(session))
+    assert store.owner_notice_sink == []
+    assert len(store.owner_link_outbox) == 2
+
+
 def test_tc_025_token_path_is_redacted_in_ordinary_logs(setup, caplog) -> None:
     app, _clock, _client, _store, url, token, _record = setup
     with caplog.at_level(logging.INFO, logger="werkzeug"):

@@ -103,6 +103,61 @@ def test_tc_015_synthetic_hashes_and_all_store_members_are_per_app(
     assert first.accounts[b_key].session_version == 0
 
 
+def test_tc_015_issued_and_redeemed_link_is_isolated_between_apps(
+    signing_key: None,
+) -> None:
+    t0 = datetime(2026, 1, 1, 12, tzinfo=UTC)
+    first_app, second_app = (
+        create_app(clock=lambda: t0),
+        create_app(clock=lambda: t0),
+    )
+    first, second = (
+        first_app.extensions["reset_store"],
+        second_app.extensions["reset_store"],
+    )
+    client = first_app.test_client()
+    assert client.get("/forgot-password").status_code == 200
+    with client.session_transaction() as session:
+        csrf = session["_csrf_token"]
+    assert (
+        client.post(
+            "/forgot-password",
+            data={"email": "owner@example.test", "csrf_token": csrf},
+        ).status_code
+        == 303
+    )
+    url = first.owner_link_outbox[0].url
+    digest = token_digest(url.removeprefix("/reset/"))
+    assert digest in first.reset_records
+    assert url.removeprefix("/reset/") not in first.reset_records
+    assert client.get(url).status_code == 200
+    assert (
+        client.post(
+            url, data={"password": "fake-replacement", "csrf_token": csrf}
+        ).status_code
+        == 303
+    )
+    assert first.accounts["owner@example.test"].session_version == 1
+    assert check_password_hash(
+        first.accounts["owner@example.test"].password_hash, "fake-replacement"
+    )
+    assert first.reset_records[digest].consumed_at == t0
+    assert first.owner_notice_sink == [OwnerNotice("owner@example.test", t0)]
+    assert first.owner_notice_sink is not first.owner_link_outbox
+    assert first.request_times["owner@example.test"] == [t0]
+
+    assert set(second.accounts) == set(first.accounts)
+    assert second.accounts["owner@example.test"].session_version == 0
+    assert check_password_hash(
+        second.accounts["owner@example.test"].password_hash, "demo-owner-password"
+    )
+    assert second.request_times == {}
+    assert second.reset_records == {}
+    assert second.owner_link_outbox == []
+    assert second.owner_notice_sink == []
+    assert b"Reset link unavailable" in second_app.test_client().get(url).data
+
+
 def test_csrf_is_signed_client_state_independent_of_account(signing_key: None) -> None:
     app = create_app()
     other_app = create_app()

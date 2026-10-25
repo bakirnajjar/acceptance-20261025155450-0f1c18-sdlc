@@ -187,6 +187,26 @@ def test_tc_014_python_312_flask_renders_request_pages(app) -> None:
         assert response.status_code == 200
         assert response.mimetype == "text/html"
         assert Page(response.get_data(as_text=True)).element("h1", id=heading)
+    with client.session_transaction() as session:
+        csrf = session["_csrf_token"]
+    assert (
+        client.post(
+            "/forgot-password",
+            data={"email": "owner@example.test", "csrf_token": csrf},
+        ).status_code
+        == 303
+    )
+    url = app.extensions["reset_store"].owner_link_outbox[-1].url
+    for path, heading, has_form in (
+        (url, "new-password-heading", True),
+        ("/reset/unknown-opaque-token", "unavailable-heading", False),
+    ):
+        response = client.get(path)
+        assert response.status_code == 200
+        assert response.mimetype == "text/html"
+        page = Page(response.get_data(as_text=True))
+        assert page.element("h1", id=heading)
+        assert any(tag == "form" for tag, _ in page.tokens) is has_form
 
 
 @pytest.mark.parametrize(
@@ -225,6 +245,109 @@ def test_entry_form_multiple_errors_focus_first_field_and_escape_copy(app) -> No
     assert "autofocus" not in page.element("input", id="sign-in-password")
     assert "&lt;check address&gt;" in html
     assert "<check address>" not in html
+
+
+def test_tc_024_dom_only_labels_focus_hints_field_errors_and_outcomes(app) -> None:
+    """Static DOM contracts only; keyboard, reader and contrast need manual review."""
+    client = app.test_client()
+    for path, field_id, label, button in (
+        ("/", "sign-in-email", "Email address", "Sign in"),
+        ("/forgot-password", "reset-email", "Email address", "Request password reset"),
+    ):
+        page = Page(client.get(path).get_data(as_text=True))
+        assert page.element("label", **{"for": field_id})
+        assert ("text", label) in page.tokens
+        assert ("text", button) in page.tokens
+        assert page.index("input", id=field_id) < page.index("button", type="submit")
+        assert all(
+            "tabindex" not in attrs
+            for tag, attrs in page.tokens
+            if tag in {"input", "button", "a"} and isinstance(attrs, dict)
+        )
+    with client.session_transaction() as session:
+        csrf = session["_csrf_token"]
+
+    invalid_sign_in = client.post(
+        "/sign-in",
+        data={"csrf_token": csrf, "email": "", "password": ""},
+    )
+    sign_in_page = Page(invalid_sign_in.get_data(as_text=True))
+    assert invalid_sign_in.status_code == 400
+    assert sign_in_page.element("input", id="sign-in-email")["autofocus"] is None
+    assert "autofocus" not in sign_in_page.element("input", id="sign-in-password")
+    for field, error in (
+        ("sign-in-email", "sign-in-email-error"),
+        ("sign-in-password", "sign-in-password-error"),
+    ):
+        assert sign_in_page.element("label", **{"for": field})
+        assert sign_in_page.element("input", id=field)["aria-describedby"] == error
+        assert sign_in_page.element("input", id=field)["aria-invalid"] == "true"
+        assert sign_in_page.element("p", id=error)["role"] == "alert"
+
+    invalid_request = client.post(
+        "/forgot-password",
+        data={"csrf_token": csrf, "email": "not-an-address"},
+    )
+    request_page = Page(invalid_request.get_data(as_text=True))
+    assert invalid_request.status_code == 400
+    assert request_page.element("label", **{"for": "reset-email"})
+    assert request_page.element("input", id="reset-email")["autofocus"] is None
+    assert request_page.element("input", id="reset-email")["aria-describedby"] == (
+        "reset-email-error"
+    )
+    assert request_page.element("p", id="reset-email-error")["role"] == "alert"
+
+    requested = client.post(
+        "/forgot-password",
+        data={"csrf_token": csrf, "email": "owner@example.test"},
+    )
+    assert requested.status_code == 303
+    assert requested.headers["Location"] == "/reset-requested"
+    requested_page = Page(
+        client.get(requested.headers["Location"]).get_data(as_text=True)
+    )
+    assert requested_page.element("h1", id="requested-heading")["tabindex"] == "-1"
+    assert requested_page.element("p", role="status")
+    assert requested_page.element("a", href="/")
+
+    store = app.extensions["reset_store"]
+    reset_url = store.owner_link_outbox[-1].url
+    form_page = Page(client.get(reset_url).get_data(as_text=True))
+    assert form_page.element("label", **{"for": "new-password"})
+    assert ("text", "New password") in form_page.tokens
+    assert ("text", "Reset password") in form_page.tokens
+    assert form_page.index("input", id="new-password") < form_page.index(
+        "button", type="submit"
+    )
+    invalid_password = client.post(
+        reset_url, data={"csrf_token": csrf, "password": "  "}
+    )
+    assert invalid_password.status_code == 400
+    password_page = Page(invalid_password.get_data(as_text=True))
+    assert password_page.element("input", id="new-password")["autofocus"] is None
+    assert password_page.element("input", id="new-password")["aria-invalid"] == "true"
+    assert password_page.element("input", id="new-password")["aria-describedby"] == (
+        "new-password-error"
+    )
+    assert password_page.element("p", id="new-password-error")["role"] == "alert"
+    assert password_page.element("label", **{"for": "new-password"})
+
+    completed = client.post(reset_url, data={"csrf_token": csrf, "password": "test"})
+    assert (completed.status_code, completed.headers["Location"]) == (
+        303,
+        "/reset-complete",
+    )
+    complete_page = Page(client.get("/reset-complete").get_data(as_text=True))
+    assert complete_page.element("h1", id="complete-heading")["tabindex"] == "-1"
+    assert complete_page.element("p", role="status")
+    assert complete_page.element("a", href="/")
+    unavailable_page = Page(client.get(reset_url).get_data(as_text=True))
+    assert unavailable_page.element("h1", id="unavailable-heading")["tabindex"] == "-1"
+    assert unavailable_page.element("p", role="alert")
+    assert unavailable_page.element("a", href="/forgot-password")
+    assert not any(tag == "form" for tag, _ in unavailable_page.tokens)
+    css = client.get("/static/styles.css").get_data(as_text=True)
+    assert ":focus-visible" in css and "outline:" in css
 
 
 def test_recovery_post_requires_csrf(app) -> None:

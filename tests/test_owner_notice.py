@@ -1,5 +1,6 @@
 """TASK-009: one process-local owner notice per committed reset."""
 
+import logging
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -131,7 +132,7 @@ class FailingSink(list[OwnerNotice]):
     [(False, False), (True, True)],
 )
 def test_tc_023_sink_failure_rolls_back_all_effects_and_keeps_sessions(
-    app_clock, append_first: bool, prior_success: bool
+    app_clock, append_first: bool, prior_success: bool, caplog
 ) -> None:
     app, clock = app_clock
     app.testing = False  # Injected in-process error returns an HTTP 500.
@@ -163,9 +164,13 @@ def test_tc_023_sink_failure_rolls_back_all_effects_and_keeps_sessions(
     sink = FailingSink(notices, append_first=append_first)
     store.owner_notice_sink = sink
 
-    response = submit(resetter, url, csrf, "fake-retry-password")
+    with caplog.at_level(logging.ERROR, logger=app.logger.name):
+        response = submit(resetter, url, csrf, "fake-retry-password")
     assert response.status_code == 500
     assert response.headers.get("Location") != "/reset-complete"
+    # TC-025: Inspect a real Flask exception record, not just a fabricated log line.
+    assert url.removeprefix("/reset/") not in caplog.text
+    assert "/reset/[redacted]" in caplog.text
     assert store.accounts[OWNER].password_hash == owner_hash
     assert record.consumed_at is None
     assert store.accounts[OWNER].session_version == owner_version

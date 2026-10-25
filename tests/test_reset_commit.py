@@ -77,6 +77,21 @@ def submit(client, url, csrf, password):
     return client.post(url, data={"csrf_token": csrf, "password": password})
 
 
+def sign_in_status(app, email: str, password: str) -> int:
+    client = app.test_client()
+    client.get("/")
+    with client.session_transaction() as session:
+        csrf = session["_csrf_token"]
+    response = client.post(
+        "/sign-in",
+        data={"csrf_token": csrf, "email": email, "password": password},
+    )
+    assert client.get("/demo").status_code == (
+        200 if response.status_code == 303 else 303
+    )
+    return response.status_code
+
+
 def test_tc_007_valid_commit_changes_only_owner_hash_and_old_sign_in_fails(
     reset_setup,
 ) -> None:
@@ -108,17 +123,9 @@ def test_tc_007_valid_commit_changes_only_owner_hash_and_old_sign_in_fails(
     assert store.accounts[OWNER].session_version == 1
     assert store.owner_notice_sink == [OwnerNotice(OWNER, T0)]
 
-    for password, expected in (("demo-owner-password", 401), ("  new password  ", 303)):
-        signed_in = app.test_client()
-        signed_in.get("/")
-        with signed_in.session_transaction() as session:
-            sign_in_csrf = session["_csrf_token"]
-        result = signed_in.post(
-            "/sign-in",
-            data={"csrf_token": sign_in_csrf, "email": OWNER, "password": password},
-        )
-        assert result.status_code == expected
-        assert signed_in.get("/demo").status_code == (200 if expected == 303 else 303)
+    assert sign_in_status(app, OWNER, "demo-owner-password") == 401
+    assert sign_in_status(app, OWNER, "  new password  ") == 303
+    assert sign_in_status(app, PEER, "demo-peer-password") == 303
 
 
 def test_tc_008_replay_get_and_post_cannot_change_hash(reset_setup) -> None:
@@ -169,6 +176,8 @@ def test_tc_009_last_microsecond_before_expiry_commits(reset_setup) -> None:
     assert not check_password_hash(
         store.accounts[OWNER].password_hash, "demo-owner-password"
     )
+    assert sign_in_status(app, OWNER, "demo-owner-password") == 401
+    assert sign_in_status(app, OWNER, "boundary-password") == 303
 
 
 @pytest.mark.parametrize("offset", [timedelta(0), timedelta(microseconds=1)])
@@ -186,6 +195,7 @@ def test_tc_010_expired_post_does_not_commit(reset_setup, offset) -> None:
     assert (store.accounts[OWNER].password_hash, record.consumed_at) == (original, None)
     assert store.accounts[OWNER].session_version == 0
     assert store.owner_notice_sink == []
+    assert b"Password reset complete" not in response.data
 
 
 def test_tc_010_valid_get_then_expired_post_rechecks_under_lock(reset_setup) -> None:
@@ -198,6 +208,9 @@ def test_tc_010_valid_get_then_expired_post_rechecks_under_lock(reset_setup) -> 
     assert response.status_code == 400
     assert b"Reset link unavailable" in response.data
     assert (store.accounts[OWNER].password_hash, record.consumed_at) == (original, None)
+    assert store.accounts[OWNER].session_version == 0
+    assert store.owner_notice_sink == []
+    assert b"Password reset complete" not in response.data
 
 
 @pytest.mark.parametrize(
@@ -218,6 +231,7 @@ def test_tc_020_password_feedback_preserves_link(reset_setup, password, error) -
     password_field = page.element("input", id="new-password")
     assert password_field["aria-invalid"] == "true"
     assert password_field["aria-describedby"] == "new-password-error"
+    assert page.element("label", **{"for": "new-password"})
     assert password_field["autofocus"] is None
     assert page.element("p", id="new-password-error")["role"] == "alert"
     assert error.encode() in response.data
@@ -283,6 +297,12 @@ def test_tc_022_concurrent_redemption_has_exactly_one_winner(reset_setup) -> Non
         )
     assert store.accounts[OWNER].session_version == 1
     assert store.owner_notice_sink == [OwnerNotice(OWNER, clock.value)]
+    for response, password in zip(
+        responses, ("first-password", "second-password"), strict=True
+    ):
+        assert sign_in_status(app, OWNER, password) == (
+            303 if response.status_code == 303 else 401
+        )
 
 
 def test_in_process_mutation_failure_restores_hash_and_token(
