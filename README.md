@@ -6,8 +6,16 @@ synthetic A/B stores per app and signed sessions. GET `/` displays the sign-in
 card; GET `/forgot-password` displays the reset-request entry form. POST
 `/sign-in` authenticates only the synthetic A/B fixtures, and `/demo` is
 guarded by the account's current in-memory session version. Reset issuance
-and the reset-request POST handler are **not** implemented yet.
+and the reset-request POST handler issue opaque, one-use links privately
+through the per-app owner-link outbox; no email is sent.
 No real accounts, messages, or deployment are configured.
+
+Reset password input in this local demonstration must have 1–1024 characters
+and at least one non-whitespace character. Other characters, including spaces,
+are preserved as entered; this is an input bound, not a production password
+strength policy. A successful reset changes only the link owner's password
+hash and consumes the link once. Session revocation and owner notices are
+separate later slices.
 
 ## Local setup
 
@@ -23,8 +31,9 @@ Set `PASSWORD_RESET_SESSION_SECRET` to a private random signing secret before
 running the app (or creating it outside tests). It is required; do not commit
 or print its value. CSRF tokens are generated separately within each signed
 client session, independently of account lookup. Store state, including
-synthetic password hashes and session versions, is process-local; no recovery
-links are issued yet. The local sign-in credentials are
+synthetic password hashes and session versions, is process-local; recovery
+links are available only in the private in-memory owner-link outbox, not in a
+public response. The local sign-in credentials are
 `owner@example.test` / `demo-owner-password` and
 `peer@example.test` / `demo-peer-password` (stored as hashes, not cleartext).
 
@@ -41,7 +50,11 @@ view `/demo`. Sign-in requires the form's signed-session CSRF token, and each
 guarded request checks the signed account identity and version against the
 per-app locked store. A changed version clears that client's stale session
 on its next guarded request; other accounts are unaffected. The recovery form
-cannot submit until a later task adds `POST /forgot-password` (currently 405).
+submits to `POST /forgot-password` and always shows an account-neutral
+confirmation for a valid address. A privately issued link opens a new-password
+form until its 30-minute expiry; a successful reset redirects to the generic
+`/reset-complete` page. Session revocation and owner notices are not yet
+implemented.
 This is only a demonstration, not a production sign-in or durable session
 policy.
 Do not expose this development server to the public network.

@@ -1,4 +1,4 @@
-"""Process-local synthetic state; later tasks implement its locked transitions."""
+"""Process-local synthetic state and locked password-reset transition."""
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -66,6 +66,34 @@ class ResetStore:
         if value.tzinfo is None or value.utcoffset() != timedelta(0):
             raise ValueError("clock must return an aware UTC datetime")
         return value
+
+    def commit_password_reset(self, digest: str, new_hash: str) -> bool:
+        """Commit only an unused, unexpired owner's password change.
+
+        The lock includes the final clock check and all mutations. Subsequent
+        slices extend this same transition with session and notice effects.
+        """
+        with self.lock:
+            record = self.reset_records.get(digest)
+            if record is None or record.consumed_at is not None:
+                return False
+            account = self.accounts.get(record.owner_key)
+            if account is None:
+                return False
+            now = self.now()
+            if now >= record.expires_at:
+                return False
+
+            previous_hash = account.password_hash
+            previous_consumed_at = record.consumed_at
+            try:
+                account.password_hash = new_hash
+                record.consumed_at = now
+            except Exception:
+                account.password_hash = previous_hash
+                record.consumed_at = previous_consumed_at
+                raise
+            return True
 
 
 def create_store(clock: Clock | None = None) -> ResetStore:

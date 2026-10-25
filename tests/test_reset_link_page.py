@@ -107,16 +107,18 @@ def test_tc_014_025_usable_get_is_labeled_csrf_ready_and_non_consuming(setup) ->
         assert store.owner_notice_sink == []
 
     # A valid GET does not authorize a later POST at the expiry boundary.
-    # Redemption itself is not implemented until TASK-007.
+    # A previously valid GET cannot authorize a reset at expiry.
     clock.value = T0 + timedelta(minutes=30)
     response = client.post(
         url, data={"password": "new-password", "csrf_token": csrf_field["value"]}
     )
-    assert response.status_code == 405
+    assert response.status_code == 400
+    assert b"Reset link unavailable" in response.data
     assert response.headers["Cache-Control"] == "no-store"
     assert response.headers["Referrer-Policy"] == "no-referrer"
     assert token.encode() not in response.data
     assert record.consumed_at is None
+    assert store.accounts[record.owner_key].password_hash == before[1]
 
 
 @pytest.mark.parametrize("kind", ["unknown", "used", "exact_expiry", "after_expiry"])

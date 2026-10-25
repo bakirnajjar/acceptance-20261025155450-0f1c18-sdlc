@@ -13,7 +13,7 @@ from flask import (
     session,
     url_for,
 )
-from werkzeug.security import check_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from password_reset_demo import recovery
 from password_reset_demo.csrf import csrf_token, valid_csrf_token
@@ -128,8 +128,7 @@ def create_app(*, clock: Clock | None = None) -> Flask:
     def reset_requested():
         return render_template("reset_requested.html")
 
-    @app.get("/reset/<token>")
-    def reset_link(token: str):
+    def reset_page(token: str, password_error: str | None = None):
         store = app.extensions["reset_store"]
         with store.lock:
             record = store.reset_records.get(token_digest(token))
@@ -139,8 +138,35 @@ def create_app(*, clock: Clock | None = None) -> Flask:
                 and store.now() < record.expires_at
             )
         if usable:
-            return render_template("reset_password.html")
+            return render_template("reset_password.html", password_error=password_error)
         return render_template("reset_unavailable.html")
+
+    @app.get("/reset/<token>")
+    def reset_link(token: str):
+        return reset_page(token)
+
+    @app.post("/reset/<token>")
+    def submit_reset(token: str):
+        if not valid_csrf_token(request.form.get("csrf_token")):
+            abort(400)
+
+        password = request.form.get("password", "")
+        if not password.strip():
+            return reset_page(
+                token, "Enter a new password with a non-space character."
+            ), 400
+        if len(password) > 1024:
+            return reset_page(token, "Use a password of 1024 characters or fewer."), 400
+
+        store = app.extensions["reset_store"]
+        new_hash = generate_password_hash(password)
+        if not store.commit_password_reset(token_digest(token), new_hash):
+            return render_template("reset_unavailable.html"), 400
+        return redirect(url_for("reset_complete"), code=303)
+
+    @app.get("/reset-complete")
+    def reset_complete():
+        return render_template("reset_complete.html")
 
     @app.after_request
     def protect_token_pages(response):
