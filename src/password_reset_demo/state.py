@@ -68,10 +68,10 @@ class ResetStore:
         return value
 
     def commit_password_reset(self, digest: str, new_hash: str) -> bool:
-        """Commit only an unused, unexpired owner's password change.
+        """Atomically change the password, consume the link and revoke owner sessions.
 
-        The lock includes the final clock check and all mutations. Subsequent
-        slices extend this same transition with session and notice effects.
+        The lock includes the final clock check and all mutations. A later slice
+        extends this transition with an owner notice.
         """
         with self.lock:
             record = self.reset_records.get(digest)
@@ -86,12 +86,15 @@ class ResetStore:
 
             previous_hash = account.password_hash
             previous_consumed_at = record.consumed_at
+            previous_version = account.session_version
             try:
                 account.password_hash = new_hash
                 record.consumed_at = now
+                account.session_version = previous_version + 1
             except Exception:
                 account.password_hash = previous_hash
                 record.consumed_at = previous_consumed_at
+                account.session_version = previous_version
                 raise
             return True
 

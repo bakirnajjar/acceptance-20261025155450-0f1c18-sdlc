@@ -1,4 +1,4 @@
-"""TASK-007: one-use password commits; version and notice effects come later."""
+"""TASK-007/008: one-use password commits and owner-session revocation."""
 
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
@@ -105,7 +105,7 @@ def test_tc_007_valid_commit_changes_only_owner_hash_and_old_sign_in_fails(
     assert check_password_hash(store.accounts[OWNER].password_hash, "  new password  ")
     assert store.accounts[PEER].password_hash == old_peer
     assert record.consumed_at == T0
-    assert store.accounts[OWNER].session_version == 0
+    assert store.accounts[OWNER].session_version == 1
     assert store.owner_notice_sink == []
 
     for password, expected in (("demo-owner-password", 401), ("  new password  ", 303)):
@@ -140,7 +140,7 @@ def test_tc_008_replay_get_and_post_cannot_change_hash(reset_setup) -> None:
     )
     assert check_password_hash(committed_hash, "first-new-password")
     assert not check_password_hash(committed_hash, "second-new-password")
-    assert store.accounts[OWNER].session_version == 0
+    assert store.accounts[OWNER].session_version == 1
     assert store.owner_notice_sink == []
 
 
@@ -162,6 +162,7 @@ def test_tc_009_last_microsecond_before_expiry_commits(reset_setup) -> None:
     clock.value = record.expires_at - timedelta(microseconds=1)
     assert submit(client, url, csrf, "boundary-password").status_code == 303
     assert record.consumed_at == clock.value
+    assert store.accounts[OWNER].session_version == 1
     assert check_password_hash(store.accounts[OWNER].password_hash, "boundary-password")
     assert not check_password_hash(
         store.accounts[OWNER].password_hash, "demo-owner-password"
@@ -277,7 +278,7 @@ def test_tc_022_concurrent_redemption_has_exactly_one_winner(reset_setup) -> Non
         assert check_password_hash(final_hash, password) == (
             response.status_code == 303
         )
-    assert store.accounts[OWNER].session_version == 0
+    assert store.accounts[OWNER].session_version == 1
     assert store.owner_notice_sink == []
 
 
@@ -307,3 +308,4 @@ def test_in_process_mutation_failure_restores_hash_and_token(
     assert store.owner_notice_sink == []
     assert submit(client, url, csrf, "new-password").status_code == 303
     assert check_password_hash(store.accounts[OWNER].password_hash, "new-password")
+    assert store.accounts[OWNER].session_version == 1
