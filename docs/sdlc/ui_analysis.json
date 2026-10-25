@@ -1,0 +1,216 @@
+{
+  "schema_version": "1.0",
+  "stage": "ui_analysis",
+  "applicability": "applicable",
+  "findings": [
+    {
+      "statement": "Observed: On a white canvas, one centered outlined rectangular sign-in card presents, in top-to-bottom order, a bold 'Sign in' heading; a labeled 'Email address' field with light-gray name@example.com example; a labeled 'Password' field with masked ******** example; a blue underlined 'Forgot password?' link immediately beneath the password field; a dark full-width 'Sign in' button beneath the link; and light-gray 'No account? Contact your administrator.' beneath the button. This establishes appearance and the visible reset entry affordance only, not field state, authentication behavior, or navigation.",
+      "provenance": "Observed",
+      "source_references": [
+        {
+          "source_type": "attachment",
+          "source_id": "c2d1eadb-60f9-4b3e-a07e-956604ee291e",
+          "locator": "sign-in-wireframe.png"
+        }
+      ],
+      "requirement_ids": ["REQ-001", "REQ-002"]
+    },
+    {
+      "statement": "Proposed (inferred, not observed): Activate 'Forgot password?' on sign-in to open a reset-request form with a labeled account-address field and submit action. The wireframe does not show the destination or prove that the link works.",
+      "provenance": "Proposed",
+      "source_references": [
+        {
+          "source_type": "knowledge",
+          "source_id": "4d3e7857-9fa5-49cc-a86a-33bcf67fabee",
+          "locator": "v1, chunk 0"
+        }
+      ],
+      "requirement_ids": ["REQ-002"]
+    },
+    {
+      "statement": "Proposed (inferred, not observed): After a reset request, present an account-existence-neutral confirmation with a way back to sign-in; otherwise equivalent requests for existing and nonexistent accounts must receive identical responses. Enforce five requests per account per hour without a response that reveals account existence, including when throttled. The exact rate-limit accounting and copy are not specified by the image.",
+      "provenance": "Proposed",
+      "source_references": [
+        {
+          "source_type": "knowledge",
+          "source_id": "4d3e7857-9fa5-49cc-a86a-33bcf67fabee",
+          "locator": "v1, chunk 0"
+        }
+      ],
+      "requirement_ids": ["REQ-003", "REQ-004"]
+    },
+    {
+      "statement": "Proposed (inferred, not observed): Opening an issued, unused, unexpired reset link reaches a new-password form; submitting a valid change reaches a success state only after the password actually changes. A link is single-use and ceases to permit a reset at or after 30 minutes from issue. Neither link delivery nor password rules are prescribed here.",
+      "provenance": "Proposed",
+      "source_references": [
+        {
+          "source_type": "user_story",
+          "source_id": "user_story",
+          "locator": "characters 0-16000"
+        },
+        {
+          "source_type": "knowledge",
+          "source_id": "4d3e7857-9fa5-49cc-a86a-33bcf67fabee",
+          "locator": "v1, chunk 0"
+        }
+      ],
+      "requirement_ids": ["REQ-005", "REQ-006", "REQ-007"]
+    },
+    {
+      "statement": "Proposed (inferred, not observed): A previously used or expired reset link leads to a recoverable non-success state with a path to request a fresh link; it cannot produce a password-change success message.",
+      "provenance": "Proposed",
+      "source_references": [
+        {
+          "source_type": "knowledge",
+          "source_id": "4d3e7857-9fa5-49cc-a86a-33bcf67fabee",
+          "locator": "v1, chunk 0"
+        }
+      ],
+      "requirement_ids": ["REQ-006", "REQ-007"]
+    },
+    {
+      "statement": "Proposed (inferred, not observed): A successful reset invalidates every active session for that account and records an owner notification for that success in the in-memory sink. These are behavioral effects, with no evidenced extra screen, external delivery channel, or prescribed success-screen disclosure.",
+      "provenance": "Proposed",
+      "source_references": [
+        {
+          "source_type": "knowledge",
+          "source_id": "4d3e7857-9fa5-49cc-a86a-33bcf67fabee",
+          "locator": "v1, chunk 0"
+        },
+        {
+          "source_type": "user_story",
+          "source_id": "user_story",
+          "locator": "characters 0-16000"
+        }
+      ],
+      "requirement_ids": ["REQ-008", "REQ-009"]
+    },
+    {
+      "statement": "Proposed (inferred, not observed): For sign-in, provide empty-field and invalid-input feedback, a non-misleading processing/loading indication, and a readable error state while preserving the observed controls; no complete authentication policy, password complexity rule, or interpretation of the examples as prefilled values follows from the image.",
+      "provenance": "Proposed",
+      "source_references": [
+        {
+          "source_type": "attachment",
+          "source_id": "c2d1eadb-60f9-4b3e-a07e-956604ee291e",
+          "locator": "sign-in-wireframe.png"
+        },
+        {
+          "source_type": "user_story",
+          "source_id": "user_story",
+          "locator": "characters 0-16000"
+        }
+      ],
+      "requirement_ids": ["REQ-001"]
+    },
+    {
+      "statement": "Proposed (inferred, not observed): For reset request, handle an empty or malformed address with field-associated validation; show processing/loading without account-sensitive clues, and handle errors and rate limiting while retaining account-existence response parity. The neutral confirmation has no input-specific empty state; any processing or error feedback must not reveal whether an account exists.",
+      "provenance": "Proposed",
+      "source_references": [
+        {
+          "source_type": "knowledge",
+          "source_id": "4d3e7857-9fa5-49cc-a86a-33bcf67fabee",
+          "locator": "v1, chunk 0"
+        }
+      ],
+      "requirement_ids": ["REQ-002", "REQ-003", "REQ-004"]
+    },
+    {
+      "statement": "Proposed (inferred, not observed): For the new-password form, handle empty or otherwise invalid submissions and processing/error states without inventing password rules; check link validity before reporting success. The success state has no form-empty state and any pending feedback must not claim completion; an expired or used link instead has a readable non-success message and retry path, with no form-empty state.",
+      "provenance": "Proposed",
+      "source_references": [
+        {
+          "source_type": "user_story",
+          "source_id": "user_story",
+          "locator": "characters 0-16000"
+        },
+        {
+          "source_type": "knowledge",
+          "source_id": "4d3e7857-9fa5-49cc-a86a-33bcf67fabee",
+          "locator": "v1, chunk 0"
+        }
+      ],
+      "requirement_ids": ["REQ-005", "REQ-006", "REQ-007"]
+    },
+    {
+      "statement": "Proposed (inferred, not observed): Across sign-in, reset request, confirmation, new-password, success and unusable-link states, support keyboard activation and logical focus order, visible and programmatic field labels and screen-reader names for links/buttons, usable contrast, field-associated validation and announced errors/status changes; focus should reach or announce the relevant outcome. The wireframe cannot establish these accessibility properties.",
+      "provenance": "Proposed",
+      "source_references": [
+        {
+          "source_type": "attachment",
+          "source_id": "c2d1eadb-60f9-4b3e-a07e-956604ee291e",
+          "locator": "sign-in-wireframe.png"
+        },
+        {
+          "source_type": "knowledge",
+          "source_id": "4d3e7857-9fa5-49cc-a86a-33bcf67fabee",
+          "locator": "v1, chunk 0"
+        }
+      ],
+      "requirement_ids": ["REQ-001", "REQ-002", "REQ-003", "REQ-005", "REQ-006", "REQ-007"]
+    },
+    {
+      "statement": "Proposed (inferred, not observed): No additional UI screen is derived from the technical, test, documentation or delivery-only constraints: Python 3.12/Flask server-rendered pages; synthetic accounts and in-memory notification sink; pytest coverage; documented production limitations; and no deployment or deployment workflow. These constrain implementation and delivery rather than providing visible wireframe evidence.",
+      "provenance": "Proposed",
+      "source_references": [
+        {
+          "source_type": "user_story",
+          "source_id": "user_story",
+          "locator": "characters 0-16000"
+        }
+      ],
+      "requirement_ids": ["REQ-010", "REQ-011", "REQ-012", "REQ-013", "REQ-014"]
+    }
+  ],
+  "source_references": [
+    {
+      "source_type": "attachment",
+      "source_id": "c2d1eadb-60f9-4b3e-a07e-956604ee291e",
+      "locator": "sign-in-wireframe.png"
+    },
+    {
+      "source_type": "user_story",
+      "source_id": "user_story",
+      "locator": "characters 0-16000"
+    },
+    {
+      "source_type": "knowledge",
+      "source_id": "4d3e7857-9fa5-49cc-a86a-33bcf67fabee",
+      "locator": "v1, chunk 0"
+    }
+  ],
+  "assumptions": [
+    "Only the sign-in entry screen is visually evidenced; every other screen, transition and state is proposed, not observed.",
+    "The sign-in examples may be hints or presentation examples rather than prefilled field values; neither authentication behavior nor a complete sign-in policy is inferred.",
+    "The five-per-account-per-hour rule and account-existence response parity apply without prescribing accounting for nonexistent identifiers, a particular time-window algorithm, or distinct visible throttling feedback.",
+    "Issued-link conveyance in the synthetic demonstration need not use external email; no link format, password rule, pixel size or responsive breakpoint is assumed.",
+    "The approved REQ-001 through REQ-014 identifiers are used for cross-stage traceability; the prior-stage read supplied no citable stage_output locator, so only the original attachment, story and current-run knowledge sources are cited."
+  ],
+  "open_questions": [
+    {
+      "question": "Does the pictured 'Sign in' button authenticate synthetic accounts, or is presentation plus test-established sessions sufficient to verify post-reset sign-out?",
+      "blocking": false,
+      "context": "The image shows a button, not its behavior or an authentication policy."
+    },
+    {
+      "question": "Are name@example.com and ******** placeholders, populated values, or only presentation examples; how should the card adapt to other viewport sizes?",
+      "blocking": false,
+      "context": "No field state, dimensions or breakpoints are established by the wireframe."
+    },
+    {
+      "question": "How will an issued reset link be surfaced or inspected in the synthetic demonstration?",
+      "blocking": false,
+      "context": "No external delivery mechanism or particular link format is specified."
+    },
+    {
+      "question": "How should nonexistent identifiers be accounted for under the five-per-account-per-hour rule, and what throttled copy preserves account-existence response parity?",
+      "blocking": false,
+      "context": "The standard states a limit and identical responses but not accounting, window algorithm or copy."
+    },
+    {
+      "question": "Which password-validation rules, reset-screen wording and precise focus/error behavior should be chosen?",
+      "blocking": false,
+      "context": "No password complexity rules or reset-screen designs were supplied."
+    }
+  ],
+  "not_applicable_reason": null
+}
