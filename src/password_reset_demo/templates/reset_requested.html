@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Request received · Password reset demo{% endblock %}
+{% block content %}
+<section class="card" aria-labelledby="requested-heading">
+  <h1 id="requested-heading" tabindex="-1">Request received</h1>
+  <p role="status">If an account exists for that address, reset instructions may be sent.</p>
+  <a class="return-link" href="{{ url_for('sign_in') }}">Back to sign in</a>
+</section>
+{% endblock %}

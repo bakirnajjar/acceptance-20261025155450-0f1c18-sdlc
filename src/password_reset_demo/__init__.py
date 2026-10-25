@@ -15,6 +15,7 @@ from flask import (
 )
 from werkzeug.security import check_password_hash
 
+from password_reset_demo import recovery
 from password_reset_demo.csrf import csrf_token, valid_csrf_token
 from password_reset_demo.state import Clock, create_store, normalize_email
 
@@ -99,5 +100,30 @@ def create_app(*, clock: Clock | None = None) -> Flask:
     @app.get("/forgot-password")
     def forgot_password():
         return render_template("forgot_password.html")
+
+    @app.post("/forgot-password")
+    def submit_forgot_password():
+        if not valid_csrf_token(request.form.get("csrf_token")):
+            abort(400)
+
+        address = request.form.get("email", "")
+        if not recovery.valid_address_syntax(address):
+            email_error = (
+                "Enter an email address."
+                if not address.strip()
+                else "Enter a valid email address."
+            )
+            return render_template("forgot_password.html", email_error=email_error), 400
+
+        # The private service owns lookup and throttling in TASK-005. Neither
+        # its result nor account state affects the response or signed session.
+        recovery._issue_reset_request(
+            app.extensions["reset_store"], normalize_email(address)
+        )
+        return redirect(url_for("reset_requested"), code=303)
+
+    @app.get("/reset-requested")
+    def reset_requested():
+        return render_template("reset_requested.html")
 
     return app
