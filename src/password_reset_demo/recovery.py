@@ -1,8 +1,16 @@
-"""Private reset-request boundary; link issuance is implemented in TASK-005."""
+"""Private reset-request issuance; the public handler never reports its outcome."""
 
 import re
+import secrets
+from datetime import timedelta
 
-from password_reset_demo.state import ResetStore
+from password_reset_demo.state import (
+    OwnerLink,
+    ResetRecord,
+    ResetStore,
+    normalize_email,
+    token_digest,
+)
 
 _ATOM = r"[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+"
 _LABEL = r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
@@ -19,8 +27,32 @@ def valid_address_syntax(address: str) -> bool:
 
 
 def _issue_reset_request(store: ResetStore, key: str) -> None:
-    """Private normalized-key handoff for TASK-005's locked issuance policy.
+    """Honor at most five requests per normalized key in the preceding 3600s.
 
-    No lookup, accounting, link or external delivery is performed in this slice.
-    The route never uses a result from this hook to construct its public response.
+    Missing accounts have the same private window, but never receive a link.
+    Neither the decision nor the bearer token is returned to the HTTP handler.
     """
+    with store.lock:
+        key = normalize_email(key)
+        now = store.now()
+        cutoff = now - timedelta(seconds=3600)
+        recent = [
+            issued for issued in store.request_times.get(key, ()) if issued > cutoff
+        ]
+        store.request_times[key] = recent
+        if len(recent) >= 5:
+            return
+
+        recent.append(now)
+        if key not in store.accounts:
+            return
+
+        token = secrets.token_urlsafe(32)
+        digest = token_digest(token)
+        while digest in store.reset_records:
+            token = secrets.token_urlsafe(32)
+            digest = token_digest(token)
+        store.reset_records[digest] = ResetRecord(
+            owner_key=key, issued_at=now, expires_at=now + timedelta(minutes=30)
+        )
+        store.owner_link_outbox.append(OwnerLink(owner_key=key, url=f"/reset/{token}"))

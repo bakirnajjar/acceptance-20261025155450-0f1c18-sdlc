@@ -115,8 +115,8 @@ def create_app(*, clock: Clock | None = None) -> Flask:
             )
             return render_template("forgot_password.html", email_error=email_error), 400
 
-        # The private service owns lookup and throttling in TASK-005. Neither
-        # its result nor account state affects the response or signed session.
+        # The private service owns lookup and throttling. Neither its result
+        # nor account state affects the response or signed session.
         recovery._issue_reset_request(
             app.extensions["reset_store"], normalize_email(address)
         )
