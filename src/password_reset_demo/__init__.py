@@ -1,9 +1,9 @@
-"""Local synthetic Flask app; user-facing routes are added in later tasks."""
+"""Local synthetic Flask app and server-rendered entry pages."""
 
 import os
 import secrets
 
-from flask import Flask
+from flask import Flask, render_template
 
 from password_reset_demo.csrf import csrf_token
 from password_reset_demo.state import Clock, create_store
@@ -20,4 +20,13 @@ def create_app(*, clock: Clock | None = None) -> Flask:
     app.extensions["reset_store"] = create_store(clock)
     app.extensions["csrf_app_id"] = secrets.token_urlsafe(16)
     app.context_processor(lambda: {"csrf_token": csrf_token})
+
+    @app.get("/")
+    def sign_in():
+        return render_template("sign_in.html")
+
+    @app.get("/forgot-password")
+    def forgot_password():
+        return render_template("forgot_password.html")
+
     return app

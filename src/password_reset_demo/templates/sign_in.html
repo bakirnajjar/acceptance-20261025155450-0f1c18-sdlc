@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Sign in · Password reset demo{% endblock %}
+{% block content %}
+<section class="card" aria-labelledby="sign-in-heading">
+  <h1 id="sign-in-heading">Sign in</h1>
+  <form action="/sign-in" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="field">
+      <label for="sign-in-email">Email address</label>
+      <input id="sign-in-email" name="email" type="email" autocomplete="username"
+             placeholder="name@example.com" required
+             {% if email_error %}aria-invalid="true" aria-describedby="sign-in-email-error" autofocus{% endif %}>
+      {% if email_error %}
+      <p id="sign-in-email-error" class="field-error" role="alert">{{ email_error }}</p>
+      {% endif %}
+    </div>
+    <div class="field">
+      <label for="sign-in-password">Password</label>
+      <input id="sign-in-password" name="password" type="password" autocomplete="current-password"
+             placeholder="********" required
+             {% if password_error %}aria-invalid="true" aria-describedby="sign-in-password-error"
+             {% if not email_error %}autofocus{% endif %}{% endif %}>
+      {% if password_error %}
+      <p id="sign-in-password-error" class="field-error" role="alert">{{ password_error }}</p>
+      {% endif %}
+    </div>
+    <a class="recovery-link" href="{{ url_for('forgot_password') }}">Forgot password?</a>
+    <button class="primary-button" type="submit">Sign in</button>
+  </form>
+  <p class="support-text">No account? Contact your administrator.</p>
+</section>
+{% endblock %}
