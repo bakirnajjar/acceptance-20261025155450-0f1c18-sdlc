@@ -20,6 +20,7 @@
   ],
   "assumptions": [
     "acceptance-20261025155450-0f1c18-skill-sentinel: the acceptance skill produced this output.",
+    "acceptance-20261025155450-0f1c18-same-agent-revision",
     "The complete pinned story has no end marker to copy; the supplied image has no visible acceptance marker to copy.",
     "A1 (sign-in scope): Specify the observed sign-in controls and observable invalidation of any active sessions, but do not assume a complete login/authentication policy. Synthetic sessions may be established by tests to check sign-out.",
     "A2 (request accounting): State the five-per-account-per-hour rule and account-existence response parity without prescribing how nonexistent identifiers are counted or an exact rolling-versus-fixed-window algorithm; implementation must preserve response parity.",
@@ -163,9 +164,10 @@
     },
     {
       "id": "REQ-007",
-      "statement": "An issued reset link expires 30 minutes after issuance.",
+      "statement": "An issued, unused reset link remains usable before expiration and expires 30 minutes after its issue time, so it cannot complete a password change at or after that time.",
       "acceptance_criteria": [
-        "Given an issued reset link, when a reset is attempted at or after 30 minutes from its issue time, then the link cannot complete a password change."
+        "Given an issued, unused reset link and an otherwise valid password change, when the change is submitted and completed before 30 minutes have elapsed from the link's issue time, then the link permits the password change.",
+        "Given an issued reset link, when a password change is attempted at or after 30 minutes from its issue time, then the link cannot complete the password change."
       ],
       "source_references": [
         {

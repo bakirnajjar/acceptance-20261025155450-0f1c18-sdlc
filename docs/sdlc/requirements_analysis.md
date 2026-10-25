@@ -74,11 +74,12 @@ Sources: `{"source_type":"knowledge","source_id":"4d3e7857-9fa5-49cc-a86a-33bcf6
 
 ### REQ-007 — Reset-link expiry
 
-An issued reset link expires 30 minutes after issuance.
+An issued, unused reset link remains usable before expiration and expires 30 minutes after its issue time, so it cannot complete a password change at or after that time.
 
 Acceptance criteria:
 
-1. Given an issued reset link, when a reset is attempted at or after 30 minutes from its issue time, then the link cannot complete a password change.
+1. Given an issued, unused reset link and an otherwise valid password change, when the change is submitted and completed before 30 minutes have elapsed from the link's issue time, then the link permits the password change.
+2. Given an issued reset link, when a password change is attempted at or after 30 minutes from its issue time, then the link cannot complete the password change.
 
 Sources: `{"source_type":"knowledge","source_id":"4d3e7857-9fa5-49cc-a86a-33bcf67fabee","locator":"v1, chunk 0"}` (ACC-STD-02).
 
@@ -156,12 +157,13 @@ Sources: `{"source_type":"user_story","source_id":"user_story","locator":"charac
 ## Assumptions
 
 1. acceptance-20261025155450-0f1c18-skill-sentinel: the acceptance skill produced this output.
-2. The complete pinned story has no end marker to copy; the supplied image has no visible acceptance marker to copy.
-3. A1 (sign-in scope): Specify the observed sign-in controls and observable invalidation of any active sessions, but do not assume a complete login/authentication policy. Synthetic sessions may be established by tests to check sign-out.
-4. A2 (request accounting): State the five-per-account-per-hour rule and account-existence response parity without prescribing how nonexistent identifiers are counted or an exact rolling-versus-fixed-window algorithm; implementation must preserve response parity.
-5. A3 (visual fidelity): Retain the observed structure, labels, examples and relative positions without assuming pixel measurements, breakpoints or additional visual requirements.
-6. A4 (link conveyance): An in-memory test mechanism may make issued links exercisable; no external email service, real delivery mechanism or particular link format is assumed.
-7. A5 (password and documentation detail): Require a valid-link password change and documentation of limitations grounded in synthetic accounts and in-memory state, but do not invent password-complexity rules or an exhaustive production checklist.
+2. acceptance-20261025155450-0f1c18-same-agent-revision
+3. The complete pinned story has no end marker to copy; the supplied image has no visible acceptance marker to copy.
+4. A1 (sign-in scope): Specify the observed sign-in controls and observable invalidation of any active sessions, but do not assume a complete login/authentication policy. Synthetic sessions may be established by tests to check sign-out.
+5. A2 (request accounting): State the five-per-account-per-hour rule and account-existence response parity without prescribing how nonexistent identifiers are counted or an exact rolling-versus-fixed-window algorithm; implementation must preserve response parity.
+6. A3 (visual fidelity): Retain the observed structure, labels, examples and relative positions without assuming pixel measurements, breakpoints or additional visual requirements.
+7. A4 (link conveyance): An in-memory test mechanism may make issued links exercisable; no external email service, real delivery mechanism or particular link format is assumed.
+8. A5 (password and documentation detail): Require a valid-link password change and documentation of limitations grounded in synthetic accounts and in-memory state, but do not invent password-complexity rules or an exhaustive production checklist.
 
 ## Open questions (all non-blocking)
 
