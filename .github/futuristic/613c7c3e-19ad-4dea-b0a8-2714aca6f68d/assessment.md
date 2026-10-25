@@ -1,0 +1,21 @@
+# Solution design assessment
+
+## Scope and available evidence
+
+- Pinned story: a small Python 3.12/Flask, server-rendered password-reset demonstration with pytest, synthetic accounts, an in-memory notification sink, production-limitations documentation, and no deployment or deployment workflows. Reference: `{"source_type":"user_story","source_id":"user_story","locator":"characters 0-8000"}`.
+- Supplied image: a white canvas with one centered, outlined sign-in card; bold "Sign in" heading; labeled "Email address" field with `name@example.com` hint; labeled "Password" field with a masked `********` example; blue underlined "Forgot password?" link immediately below the password field; dark full-width "Sign in" button; and light-gray "No account? Contact your administrator." beneath it. These are observed visual elements, not proof of authentication behavior, field state, navigation, pixel requirements, or responsive breakpoints. Reference: `{"source_type":"attachment","source_id":"c2d1eadb-60f9-4b3e-a07e-956604ee291e","locator":"sign-in-wireframe.png"}`.
+- Current-run curated account recovery standard: ACC-STD-01 requires the reset entry link, identical existing/nonexistent-account request responses, and at most five reset requests per account per hour; ACC-STD-02 requires single-use links expiring 30 minutes after issue and sign-out of every active session after a reset; ACC-STD-03 requires an owner notification after every successful reset. Reference: `{"source_type":"knowledge","source_id":"4d3e7857-9fa5-49cc-a86a-33bcf67fabee","locator":"v1, chunk 0"}`. Other similarly titled knowledge results belong to different acceptance runs and are not used.
+- Authorized approved predecessor `requirements_analysis` defines REQ-001 through REQ-014 and their acceptance criteria; `ui_analysis` distinguishes observed sign-in visuals from proposed recovery screens; `acceptance_20261025155450_0f1c18_risk` identifies prospective risks across all 14 requirements. These prior outputs were read through the stage-output service, which returned no citable `source_reference`; retain their identifiers for traceability without inventing a stage-output locator. The repository currently holds these SDLC documents and a synthetic-repository README, but no application implementation, dependency manifest, or executable test command.
+
+## Design implications for planning
+
+- REQ-001/002: reproduce the observed server-rendered sign-in card and connect its recovery link to a proposed reset-request page; do not infer a complete sign-in authentication policy from the image.
+- REQ-003/004: make externally observable responses account-existence-neutral, including throttled requests; enforce five honored requests per existing account within an hour, with tests at the fifth/sixth boundary.
+- REQ-005/006/007: provide an inspectable synthetic reset link, accept an unused link before 30 minutes, reject replay and attempts at or after 30 minutes, and test boundaries with controlled time.
+- REQ-008/009: invalidate all active sessions for the reset account and record one owner notification per successful reset in memory; establish multiple synthetic sessions in tests if needed.
+- REQ-010/011/012/013: scaffold Python 3.12 and Flask server-rendered templates, synthetic account/in-memory services and pytest coverage for the above behavior; document why in-memory state and notifications are not production delivery or persistence.
+- REQ-014: prohibit deployment actions and new deployment workflows. This negative requirement can be covered by an implementation/review task with an explicit acceptance check; no deployment hosting should be assumed.
+
+## Evidence limits and open decisions
+
+Only the sign-in screen is pictured; recovery forms and their wording, link conveyance, account-session creation, time-window accounting, and password policy are not specified. The approved predecessors treat these as nonblocking questions. A design may choose minimal, testable mechanisms while labeling choices as assumptions, preserving response parity and the exact 30-minute and five-per-hour constraints. No code or test results exist yet; this assessment does not claim implementation or production security. The schema is pinned for the future solution-design JSON/Markdown outputs, not for this assessment.
