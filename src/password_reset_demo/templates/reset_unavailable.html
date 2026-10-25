@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Reset link unavailable · Password reset demo{% endblock %}
+{% block content %}
+<section class="card" aria-labelledby="unavailable-heading">
+  <h1 id="unavailable-heading" tabindex="-1">Reset link unavailable</h1>
+  <p role="alert">This link cannot be used. You can request a new one.</p>
+  <a class="return-link" href="{{ url_for('forgot_password') }}">Request a new link</a>
+</section>
+{% endblock %}

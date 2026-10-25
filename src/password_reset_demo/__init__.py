@@ -17,7 +17,8 @@ from werkzeug.security import check_password_hash
 
 from password_reset_demo import recovery
 from password_reset_demo.csrf import csrf_token, valid_csrf_token
-from password_reset_demo.state import Clock, create_store, normalize_email
+from password_reset_demo.logging_policy import install_token_log_redaction
+from password_reset_demo.state import Clock, create_store, normalize_email, token_digest
 
 
 def create_app(*, clock: Clock | None = None) -> Flask:
@@ -31,6 +32,7 @@ def create_app(*, clock: Clock | None = None) -> Flask:
     app.extensions["reset_store"] = create_store(clock)
     app.extensions["csrf_app_id"] = secrets.token_urlsafe(16)
     app.context_processor(lambda: {"csrf_token": csrf_token})
+    install_token_log_redaction(app.logger)
 
     @app.get("/")
     def sign_in():
@@ -125,5 +127,27 @@ def create_app(*, clock: Clock | None = None) -> Flask:
     @app.get("/reset-requested")
     def reset_requested():
         return render_template("reset_requested.html")
+
+    @app.get("/reset/<token>")
+    def reset_link(token: str):
+        store = app.extensions["reset_store"]
+        with store.lock:
+            record = store.reset_records.get(token_digest(token))
+            usable = (
+                record is not None
+                and record.consumed_at is None
+                and store.now() < record.expires_at
+            )
+        if usable:
+            return render_template("reset_password.html")
+        return render_template("reset_unavailable.html")
+
+    @app.after_request
+    def protect_token_pages(response):
+        # Include method errors too: they still have a bearer token in the URL.
+        if request.path.startswith("/reset/"):
+            response.headers["Cache-Control"] = "no-store"
+            response.headers["Referrer-Policy"] = "no-referrer"
+        return response
 
     return app
