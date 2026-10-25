@@ -1,10 +1,12 @@
 """TASK-002 DOM coverage: page presentation and recovery entry only."""
 
+import sys
+import tomllib
 from html.parser import HTMLParser
 from pathlib import Path
 
 import pytest
-from flask import render_template
+from flask import Flask, render_template
 
 from password_reset_demo import create_app
 
@@ -52,8 +54,18 @@ def app(monkeypatch: pytest.MonkeyPatch):
 def test_tc_001_sign_in_card_labels_empty_fields_and_examples(app) -> None:
     response = app.test_client().get("/")
     assert response.status_code == 200
+    assert response.mimetype == "text/html"
     page = Page(response.get_data(as_text=True))
     assert page.element("html")["lang"] == "en"
+    assert (
+        sum(
+            tag == "section"
+            and isinstance(attrs, dict)
+            and attrs.get("class") == "card"
+            for tag, attrs in page.tokens
+        )
+        == 1
+    )
     assert page.element("section", **{"class": "card"})["aria-labelledby"] == (
         "sign-in-heading"
     )
@@ -72,6 +84,14 @@ def test_tc_001_sign_in_card_labels_empty_fields_and_examples(app) -> None:
     assert (email["type"], email["placeholder"]) == ("email", "name@example.com")
     assert (password["type"], password["placeholder"]) == ("password", "********")
     assert email.get("value", "") == password.get("value", "") == ""
+    assert (
+        page.index("h1", id="sign-in-heading")
+        < page.index("label", **{"for": "sign-in-email"})
+        < page.index("input", id="sign-in-email")
+    )
+    assert page.index("label", **{"for": "sign-in-password"}) < page.index(
+        "input", id="sign-in-password"
+    )
 
     stylesheet = page.element("link", rel="stylesheet")["href"]
     assert stylesheet == "/static/styles.css"
@@ -103,6 +123,7 @@ def test_tc_002_sign_in_visual_and_dom_order(app) -> None:
         Path(__file__).parents[1] / "src/password_reset_demo/static/styles.css"
     ).read_text()
     assert "text-decoration: underline;" in css
+    assert "a { color: #135ba1;" in css
     assert "background: #212a36;" in css
     assert ".primary-button {" in css and "width: 100%;" in css
     assert ".support-text {" in css and "color: #596577;" in css
@@ -147,6 +168,25 @@ def test_tc_003_recovery_link_opens_csrf_ready_accessible_request_form(app) -> N
     )
     return_path = page.element("a", **{"class": "return-link"})["href"]
     assert client.get(return_path).status_code == 200
+
+
+def test_tc_014_python_312_flask_renders_request_pages(app) -> None:
+    """The local Python 3.12 client receives HTML from the Flask/Jinja routes."""
+    assert sys.version_info[:2] == (3, 12)
+    metadata = tomllib.loads((Path(__file__).parents[1] / "pyproject.toml").read_text())
+    assert metadata["project"]["requires-python"] == ">=3.12"
+    assert any(dep.startswith("flask==") for dep in metadata["project"]["dependencies"])
+    assert isinstance(app, Flask)
+    client = app.test_client()
+    for path, heading in (
+        ("/", "sign-in-heading"),
+        ("/forgot-password", "reset-heading"),
+        ("/reset-requested", "requested-heading"),
+    ):
+        response = client.get(path)
+        assert response.status_code == 200
+        assert response.mimetype == "text/html"
+        assert Page(response.get_data(as_text=True)).element("h1", id=heading)
 
 
 @pytest.mark.parametrize(

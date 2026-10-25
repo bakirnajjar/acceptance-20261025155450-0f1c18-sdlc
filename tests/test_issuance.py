@@ -47,6 +47,9 @@ def public_surface(client, response):
     assert response.headers["Location"] == "/reset-requested"
     destination = client.get(response.headers["Location"])
     assert destination.status_code == 200
+    assert destination.mimetype == "text/html"
+    assert b"If an account exists" in destination.data
+    assert b'role="status"' in destination.data
     return (
         response.status_code,
         tuple(response.headers.items()),
@@ -54,6 +57,18 @@ def public_surface(client, response):
         destination.status_code,
         tuple(destination.headers.items()),
         destination.data,
+    )
+
+
+def cookie_attributes(cookie):
+    assert cookie is not None
+    return (
+        cookie.key,
+        cookie.domain,
+        cookie.path,
+        cookie.secure,
+        cookie.http_only,
+        cookie.same_site,
     )
 
 
@@ -128,33 +143,55 @@ def test_tc_004_019_matched_owner_absent_parity_and_private_counts(
 ) -> None:
     first_app, clock = setup
     second_app = create_app(clock=clock)
+    # Swap both assignment and execution order on independently matched stores.
     pairs = [(OWNER, first_app), (ABSENT, second_app)]
     if not owner_first:
-        pairs.reverse()
+        pairs = [(ABSENT, first_app), (OWNER, second_app)]
 
     surfaces = {}
+    cookie_policies = {}
     for key, app in pairs:
         store = app.extensions["reset_store"]
         store.request_times[key] = [T0] * initial_count
         client, csrf = ready_client(app)
+        before = client.get_cookie("session")
+        assert before is not None and before.value
+        assert csrf
+        cookie_policies[key] = cookie_attributes(before)
         clock.value = T0 + (
             timedelta(seconds=3599) if initial_count == 5 else timedelta(0)
         )
         address = f" {key.split('@')[0].upper()}@Example.Test "
         response = request_link(client, csrf, address)
         surfaces[key] = public_surface(client, response)
+        for headers, body in (
+            (surfaces[key][1], surfaces[key][2]),
+            (surfaces[key][4], surfaces[key][5]),
+        ):
+            assert address.strip().encode() not in body
+            assert address.strip() not in str(headers)
+        # Each app generates different CSRF bytes. Compare the cookie policy
+        # and account-dependent mutations, not those unrelated random bytes.
+        after = client.get_cookie("session")
+        assert after is not None and after.value == before.value
+        assert cookie_attributes(after) == cookie_policies[key]
+        assert "Set-Cookie" not in response.headers
         assert store.request_times == {
             key: [T0] * initial_count + ([] if initial_count == 5 else [clock.value])
         }
         assert len(store.owner_link_outbox) == (key == OWNER and initial_count < 5)
         assert len(store.reset_records) == len(store.owner_link_outbox)
         if store.owner_link_outbox:
-            assert_private_link(store, store.owner_link_outbox[0], clock.value)
+            token = assert_private_link(store, store.owner_link_outbox[0], clock.value)
+            assert token.encode() not in surfaces[key][2] + surfaces[key][5]
+            assert token not in str(surfaces[key][1]) + str(surfaces[key][4])
+        for public_part in (surfaces[key][2], surfaces[key][5]):
+            assert OWNER.encode() not in public_part
+            assert ABSENT.encode() not in public_part
         assert store.owner_notice_sink == []
 
+    assert cookie_policies[OWNER] == cookie_policies[ABSENT]
     assert surfaces[OWNER] == surfaces[ABSENT]
-    assert OWNER.encode() not in surfaces[OWNER][2]
-    assert ABSENT.encode() not in surfaces[ABSENT][2]
 
 
 def test_absent_key_has_same_fifth_sixth_and_hour_boundary_accounting(setup) -> None:
@@ -203,6 +240,10 @@ def test_tc_021_two_simultaneous_clients_compete_for_fifth_slot(setup) -> None:
     assert surfaces[0] == surfaces[1]
     assert store.request_times == {OWNER: [T0] * 4 + [clock.value]}
     assert len(store.owner_link_outbox) == len(store.reset_records) == 5
-    assert len(first_four | {link.url for link in store.owner_link_outbox}) == 5
-    assert_private_link(store, store.owner_link_outbox[-1], clock.value)
+    assert len({link.url for link in store.owner_link_outbox}) == 5
+    assert {link.url for link in store.owner_link_outbox[:4]} == first_four
+    token = assert_private_link(store, store.owner_link_outbox[-1], clock.value)
+    for surface in surfaces:
+        assert token.encode() not in surface[2] + surface[5]
+        assert token not in str(surface[1]) + str(surface[4])
     assert store.owner_notice_sink == []

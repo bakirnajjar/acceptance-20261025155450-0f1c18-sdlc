@@ -198,3 +198,108 @@ def test_account_like_invalid_addresses_receive_identical_feedback(app) -> None:
     assert list(responses[0][0].headers.items()) == list(
         responses[1][0].headers.items()
     )
+
+
+@pytest.mark.parametrize("owner_first", [True, False])
+@pytest.mark.parametrize(
+    ("owner_input", "absent_input", "message"),
+    [
+        ("  ", "", "Enter an email address."),
+        ("owner@example..test", "absent@example..test", "Enter a valid email address."),
+        ("owner@@example.test", "absent@@example.test", "Enter a valid email address."),
+    ],
+)
+def test_tc_020_invalid_request_parity_on_independent_stores(
+    app, owner_first: bool, owner_input: str, absent_input: str, message: str
+) -> None:
+    """Invalid address classes do not depend on existence or change private state."""
+    other = create_app(clock=lambda: T0)
+    pairs = [(app, owner_input), (other, absent_input)]
+    if not owner_first:
+        pairs = [(app, absent_input), (other, owner_input)]
+    surfaces = []
+    for current_app, address in pairs:
+        store = current_app.extensions["reset_store"]
+        before = {
+            key: (account.password_hash, account.session_version)
+            for key, account in store.accounts.items()
+        }
+        client, csrf = ready_client(current_app)
+        response = client.post(
+            "/forgot-password", data={"email": address, "csrf_token": csrf}
+        )
+        assert response.status_code == 400
+        assert "Location" not in response.headers
+        page = FormPage(response.get_data(as_text=True))
+        assert page.element("input", id="reset-email")["aria-describedby"] == (
+            "reset-email-error"
+        )
+        assert page.element("p", id="reset-email-error")["role"] == "alert"
+        assert message in page.text
+        if address.strip():
+            assert address.strip() not in response.get_data(as_text=True)
+        surfaces.append(
+            (
+                response.status_code,
+                tuple(response.headers.items()),
+                response.data.replace(csrf.encode(), b"<csrf>"),
+            )
+        )
+        assert store.request_times == {}
+        assert store.owner_link_outbox == []
+        assert store.reset_records == {}
+        assert store.owner_notice_sink == []
+        assert {
+            key: (account.password_hash, account.session_version)
+            for key, account in store.accounts.items()
+        } == before
+    assert surfaces[0] == surfaces[1]
+
+
+@pytest.mark.parametrize("owner_first", [True, False])
+@pytest.mark.parametrize("csrf_kind", ["missing", "incorrect", "other_client"])
+def test_tc_020_csrf_rejection_parity_on_independent_stores(
+    app, owner_first: bool, csrf_kind: str
+) -> None:
+    """A valid address with invalid CSRF never reaches the private counter."""
+    other = create_app(clock=lambda: T0)
+    pairs = [(app, "owner@example.test"), (other, "absent@example.test")]
+    if not owner_first:
+        pairs = [(app, "absent@example.test"), (other, "owner@example.test")]
+    surfaces = []
+    for current_app, address in pairs:
+        store = current_app.extensions["reset_store"]
+        before = {
+            key: (account.password_hash, account.session_version)
+            for key, account in store.accounts.items()
+        }
+        client, csrf = ready_client(current_app)
+        _peer, peer_csrf = ready_client(current_app)
+        assert csrf != peer_csrf
+        supplied = {
+            "missing": None,
+            "incorrect": "incorrect",
+            "other_client": peer_csrf,
+        }[csrf_kind]
+        response = client.post(
+            "/forgot-password",
+            data={
+                "email": address,
+                **({"csrf_token": supplied} if supplied is not None else {}),
+            },
+        )
+        assert response.status_code == 400
+        assert "Location" not in response.headers
+        assert address.encode() not in response.data
+        surfaces.append(
+            (response.status_code, tuple(response.headers.items()), response.data)
+        )
+        assert store.request_times == {}
+        assert store.owner_link_outbox == []
+        assert store.reset_records == {}
+        assert store.owner_notice_sink == []
+        assert {
+            key: (account.password_hash, account.session_version)
+            for key, account in store.accounts.items()
+        } == before
+    assert surfaces[0] == surfaces[1]
