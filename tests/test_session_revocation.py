@@ -6,7 +6,7 @@ import pytest
 from werkzeug.security import check_password_hash
 
 from password_reset_demo import create_app
-from password_reset_demo.state import Account, token_digest
+from password_reset_demo.state import Account, OwnerNotice, token_digest
 
 OWNER = "owner@example.test"
 PEER = "peer@example.test"
@@ -97,7 +97,7 @@ def test_tc_011_success_revokes_independent_owner_clients_and_copied_cookie(
     )
     assert store.accounts[PEER].password_hash == peer_hash
     assert store.reset_records[token_digest(url.removeprefix("/reset/"))].consumed_at
-    assert store.owner_notice_sink == []  # Notices are added in TASK-009.
+    assert store.owner_notice_sink == [OwnerNotice(OWNER, store.now())]
 
     copied = app.test_client()
     copied.set_cookie(
@@ -131,10 +131,13 @@ def test_tc_011_invalid_expired_and_replayed_resets_leave_new_session_intact(
     next_csrf = csrf_for(resetter, next_url)
     next_record = store.reset_records[token_digest(next_url.removeprefix("/reset/"))]
     original_hash = store.accounts[OWNER].password_hash
+    committed_notices = store.owner_notice_sink[:]
+    assert committed_notices == [OwnerNotice(OWNER, clock.value)]
 
     def assert_no_revocation(response) -> None:
         assert response.status_code == 400
         assert store.accounts[OWNER].session_version == 1
+        assert store.owner_notice_sink == committed_notices
         assert current.get("/demo").status_code == 200
 
     assert_no_revocation(submit(resetter, url, csrf, "replayed-password"))
@@ -188,6 +191,7 @@ def test_version_mutation_failure_rolls_back_hash_token_and_revocation(
     assert account.password_hash == original_hash
     assert account.session_version == 0
     assert record.consumed_at is None
+    assert store.owner_notice_sink == []
     for client in (owner1, owner2, peer):
         assert client.get("/demo").status_code == 200
 
@@ -195,6 +199,7 @@ def test_version_mutation_failure_rolls_back_hash_token_and_revocation(
     assert submit(resetter, url, csrf, "new-owner-password").status_code == 303
     assert account.session_version == 1
     assert record.consumed_at == clock.value
+    assert store.owner_notice_sink == [OwnerNotice(OWNER, clock.value)]
     for client in (owner1, owner2):
         assert_cleared_on_next_access(client)
     assert peer.get("/demo").status_code == 200

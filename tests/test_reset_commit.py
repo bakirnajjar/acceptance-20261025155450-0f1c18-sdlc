@@ -9,7 +9,7 @@ import pytest
 from werkzeug.security import check_password_hash
 
 from password_reset_demo import create_app
-from password_reset_demo.state import ResetRecord, token_digest
+from password_reset_demo.state import OwnerNotice, ResetRecord, token_digest
 
 T0 = datetime(2026, 1, 1, 12, tzinfo=UTC)
 OWNER = "owner@example.test"
@@ -106,7 +106,7 @@ def test_tc_007_valid_commit_changes_only_owner_hash_and_old_sign_in_fails(
     assert store.accounts[PEER].password_hash == old_peer
     assert record.consumed_at == T0
     assert store.accounts[OWNER].session_version == 1
-    assert store.owner_notice_sink == []
+    assert store.owner_notice_sink == [OwnerNotice(OWNER, T0)]
 
     for password, expected in (("demo-owner-password", 401), ("  new password  ", 303)):
         signed_in = app.test_client()
@@ -127,6 +127,8 @@ def test_tc_008_replay_get_and_post_cannot_change_hash(reset_setup) -> None:
     assert submit(client, url, csrf, "first-new-password").status_code == 303
     committed_hash = store.accounts[OWNER].password_hash
     consumed_at = record.consumed_at
+    committed_notices = store.owner_notice_sink[:]
+    assert committed_notices == [OwnerNotice(OWNER, T0)]
     page = Page(client.get(url).get_data(as_text=True))
     assert page.element("a", href="/forgot-password")
     assert not any(tag == "form" for tag, _ in page.elements)
@@ -141,7 +143,7 @@ def test_tc_008_replay_get_and_post_cannot_change_hash(reset_setup) -> None:
     assert check_password_hash(committed_hash, "first-new-password")
     assert not check_password_hash(committed_hash, "second-new-password")
     assert store.accounts[OWNER].session_version == 1
-    assert store.owner_notice_sink == []
+    assert store.owner_notice_sink == committed_notices
 
 
 def test_tc_008_unknown_token_post_is_not_a_success(reset_setup) -> None:
@@ -244,6 +246,7 @@ def test_tc_020_csrf_rejection_and_1024_character_bound(reset_setup) -> None:
     assert csrf != other_csrf
     assert submit(other, url, other_csrf, "x" * 1024).status_code == 303
     assert check_password_hash(store.accounts[OWNER].password_hash, "x" * 1024)
+    assert store.owner_notice_sink == [OwnerNotice(OWNER, T0)]
 
 
 def test_tc_022_concurrent_redemption_has_exactly_one_winner(reset_setup) -> None:
@@ -279,7 +282,7 @@ def test_tc_022_concurrent_redemption_has_exactly_one_winner(reset_setup) -> Non
             response.status_code == 303
         )
     assert store.accounts[OWNER].session_version == 1
-    assert store.owner_notice_sink == []
+    assert store.owner_notice_sink == [OwnerNotice(OWNER, clock.value)]
 
 
 def test_in_process_mutation_failure_restores_hash_and_token(
@@ -309,3 +312,4 @@ def test_in_process_mutation_failure_restores_hash_and_token(
     assert submit(client, url, csrf, "new-password").status_code == 303
     assert check_password_hash(store.accounts[OWNER].password_hash, "new-password")
     assert store.accounts[OWNER].session_version == 1
+    assert store.owner_notice_sink == [OwnerNotice(OWNER, T0)]

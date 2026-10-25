@@ -68,10 +68,10 @@ class ResetStore:
         return value
 
     def commit_password_reset(self, digest: str, new_hash: str) -> bool:
-        """Atomically change the password, consume the link and revoke owner sessions.
+        """Atomically change the password, consume the link, revoke and notify.
 
-        The lock includes the final clock check and all mutations. A later slice
-        extends this transition with an owner notice.
+        The process-local lock includes the final clock check and all mutations.
+        On an in-process failure, restore even a partially appended notice.
         """
         with self.lock:
             record = self.reset_records.get(digest)
@@ -87,14 +87,17 @@ class ResetStore:
             previous_hash = account.password_hash
             previous_consumed_at = record.consumed_at
             previous_version = account.session_version
+            previous_notices = self.owner_notice_sink[:]
             try:
                 account.password_hash = new_hash
                 record.consumed_at = now
                 account.session_version = previous_version + 1
+                self.owner_notice_sink.append(OwnerNotice(record.owner_key, now))
             except Exception:
                 account.password_hash = previous_hash
                 record.consumed_at = previous_consumed_at
                 account.session_version = previous_version
+                self.owner_notice_sink[:] = previous_notices
                 raise
             return True
 
