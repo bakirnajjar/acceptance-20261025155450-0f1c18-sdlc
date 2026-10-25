@@ -3,8 +3,10 @@
 A Python 3.12 Flask/Jinja2 project managed by [uv](https://docs.astral.sh/uv/).
 The app factory provides package-relative Jinja pages, separate in-memory
 synthetic A/B stores per app and signed sessions. GET `/` displays the sign-in
-card; GET `/forgot-password` displays the reset-request entry form. Form POST
-handlers, authentication and reset issuance are **not** implemented yet.
+card; GET `/forgot-password` displays the reset-request entry form. POST
+`/sign-in` authenticates only the synthetic A/B fixtures, and `/demo` is
+guarded by the account's current in-memory session version. Reset issuance
+and the reset-request POST handler are **not** implemented yet.
 No real accounts, messages, or deployment are configured.
 
 ## Local setup
@@ -21,7 +23,10 @@ Set `PASSWORD_RESET_SESSION_SECRET` to a private random signing secret before
 running the app (or creating it outside tests). It is required; do not commit
 or print its value. CSRF tokens are generated separately within each signed
 client session, independently of account lookup. Store state, including
-synthetic password hashes, is process-local; no recovery links are issued yet.
+synthetic password hashes and session versions, is process-local; no recovery
+links are issued yet. The local sign-in credentials are
+`owner@example.test` / `demo-owner-password` and
+`peer@example.test` / `demo-peer-password` (stored as hashes, not cleartext).
 
 ## Run locally
 
@@ -31,9 +36,14 @@ PASSWORD_RESET_SESSION_SECRET='<private random value>' \
 ```
 
 The development server starts on `http://127.0.0.1:5000/`. Visit `/` and follow
-the recovery link to `/forgot-password`. The forms include signed-session CSRF
-state, but submissions cannot complete until later tasks add POST routes
-(`POST /sign-in` currently returns 404; `POST /forgot-password` returns 405).
+the recovery link to `/forgot-password`. Sign in with a synthetic fixture to
+view `/demo`. Sign-in requires the form's signed-session CSRF token, and each
+guarded request checks the signed account identity and version against the
+per-app locked store. A changed version clears that client's stale session
+on its next guarded request; other accounts are unaffected. The recovery form
+cannot submit until a later task adds `POST /forgot-password` (currently 405).
+This is only a demonstration, not a production sign-in or durable session
+policy.
 Do not expose this development server to the public network.
 
 ## Build / verify

@@ -187,7 +187,7 @@ def test_entry_form_multiple_errors_focus_first_field_and_escape_copy(app) -> No
     assert "<check address>" not in html
 
 
-def test_entry_page_post_handlers_remain_for_later_tasks(app) -> None:
+def test_recovery_post_handler_remains_for_later_task(app) -> None:
     client = app.test_client()
-    assert client.post("/sign-in").status_code == 404
+    assert client.post("/sign-in").status_code == 400
     assert client.post("/forgot-password").status_code == 405

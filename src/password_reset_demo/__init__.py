@@ -1,12 +1,22 @@
-"""Local synthetic Flask app and server-rendered entry pages."""
+"""Local synthetic Flask app and server-rendered demonstration pages."""
 
 import os
 import secrets
 
-from flask import Flask, render_template
+from flask import (
+    Flask,
+    abort,
+    make_response,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
+from werkzeug.security import check_password_hash
 
-from password_reset_demo.csrf import csrf_token
-from password_reset_demo.state import Clock, create_store
+from password_reset_demo.csrf import csrf_token, valid_csrf_token
+from password_reset_demo.state import Clock, create_store, normalize_email
 
 
 def create_app(*, clock: Clock | None = None) -> Flask:
@@ -24,6 +34,67 @@ def create_app(*, clock: Clock | None = None) -> Flask:
     @app.get("/")
     def sign_in():
         return render_template("sign_in.html")
+
+    @app.post("/sign-in")
+    def submit_sign_in():
+        if not valid_csrf_token(request.form.get("csrf_token")):
+            abort(400)
+
+        email = request.form.get("email", "")
+        password = request.form.get("password", "")
+        email_error = "Enter an email address." if not email.strip() else None
+        password_error = "Enter a password." if not password else None
+        if email_error or password_error:
+            session.pop("account_id", None)
+            session.pop("session_version", None)
+            return render_template(
+                "sign_in.html", email_error=email_error, password_error=password_error
+            ), 400
+
+        store = app.extensions["reset_store"]
+        with store.lock:
+            key = normalize_email(email)
+            account = store.accounts.get(key)
+            if account is not None and check_password_hash(
+                account.password_hash, password
+            ):
+                # Discard any prior identity and rotate CSRF state on a new sign-in.
+                session.clear()
+                session["account_id"] = key
+                session["session_version"] = account.session_version
+                return redirect(url_for("demo"), code=303)
+
+        session.pop("account_id", None)
+        session.pop("session_version", None)
+        return render_template(
+            "sign_in.html", password_error="Invalid email address or password."
+        ), 401
+
+    @app.get("/demo")
+    def demo():
+        store = app.extensions["reset_store"]
+        account_id = session.get("account_id")
+        version = session.get("session_version")
+        with store.lock:
+            account = (
+                store.accounts.get(account_id) if isinstance(account_id, str) else None
+            )
+            if (
+                account is not None
+                and type(version) is int
+                and version == account.session_version
+            ):
+                email = account.email
+            else:
+                email = None
+        if email is None:
+            if "account_id" in session or "session_version" in session:
+                session.clear()
+            return redirect(url_for("sign_in"), code=303)
+
+        response = make_response(render_template("demo.html", email=email))
+        response.headers["Cache-Control"] = "no-store"
+        return response
 
     @app.get("/forgot-password")
     def forgot_password():
